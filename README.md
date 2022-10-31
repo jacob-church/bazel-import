@@ -10,21 +10,21 @@ This extension detects change to TS files, takes notes of _new_ `import` stateme
 
 This extension assumes:
 
--   your TS Bazel target names match the location of your build files
--   you have `buildozer` installed on your system
+- your TS Bazel target names match the location of your build files
+- you have `buildozer` installed on your system
 
 ## Extension Settings
 
 This extension contributes the following settings:
 
--   `bazel-import.buildFile`: The file name convention where your build targets are defined
--   `bazel-import.targetPrefixes`: Path prefixes that should be considered for auto-adding Bazel deps
--   `bazel-import.importPathPrefixes`: Target prefixes that should be considered for auto-adding Bazel deps
--   `bazel-import.externalTargets`: External dependency path previxes and their associated external build targets
--   `bazel-import.notifyChange`: Notify the user that a build file has beend updated
+- `bazel-import.buildFile`: The file name convention where your build targets are defined
+- `bazel-import.targetPrefixes`: Path prefixes that should be considered for auto-adding Bazel deps
+- `bazel-import.importPathPrefixes`: Target prefixes that should be considered for auto-adding Bazel deps
+- `bazel-import.externalTargets`: External dependency path previxes and their associated external build targets
+- `bazel-import.notifyChange`: Notify the user that a build file has beend updated
 
 ## Release Notes
 
-### 0.1
+### 0.0.1
 
 Initial release
