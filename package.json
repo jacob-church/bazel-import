@@ -81,5 +81,6 @@
     "repository": {
         "type": "git",
         "url": "https://github.com/jacob-church/bazel-import.git"
-    }
+    },
+    "publisher": "jacob-church"
 }
