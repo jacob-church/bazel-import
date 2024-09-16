@@ -115,6 +115,7 @@ function positionsFromTextChanges(
             // "easy" match; new import statements
             if (maybeImport.startsWith('import')) {
                 const lines = maybeImport.split('\n');
+                // splitting by newline can add junk empty strings
                 while (lines[lines.length - 1] === '') {
                     lines.pop();
                 }

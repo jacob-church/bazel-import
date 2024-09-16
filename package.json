@@ -46,7 +46,7 @@
                             "@angular/platform-browser": "@npm//@angular/platform-browser",
                             "rxjs": "@npm//rxjs"
                         },
-                        "description": "External dependency path previxes and their associated external build targets."
+                        "description": "External dependency path prefixes and their associated external build targets."
                     },
                     "bazel-import.notifyChange": {
                         "type": "boolean",
