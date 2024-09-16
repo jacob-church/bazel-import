@@ -32,7 +32,7 @@
                         "type": ["array", "string", "null"],
                         "default": [
                             "/cake/app/webroot/ts",
-                            "extensibility"
+                            "/extensibility"
                         ],
                         "description": "Target prefixes that should be considered for auto-adding Bazel deps."
                     },
