@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import {uriToContainingUri} from './uritools';
 
 const OPEN_BUTTON = 'Open';
 const DISMISS_BUTTON = "Don't show this again";
@@ -220,17 +221,6 @@ async function uriToBuildTarget(uri: vscode.Uri): Promise<[string, vscode.Uri] |
         return undefined;
     }
     return uriToBuildTarget(uriToContainingUri(uri));
-}
-
-/**
- * Simple method to get the directory above the given Uri
- * @param uri current directory (e.g. /a/b/c/d/e)
- * @returns parent directory (e.g. /a/b/c/d)
- */
-function uriToContainingUri(uri: vscode.Uri): vscode.Uri {
-    const parts = uri.fsPath.split('/');
-    parts.pop();
-    return vscode.Uri.joinPath(vscode.Uri.file('/'), ...parts);
 }
 
 /**
