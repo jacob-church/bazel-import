@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import {uriToContainingUri} from './uritools';
+import {uriToBuildTarget} from './targettools';
 
 const OPEN_BUTTON = 'Open';
 const DISMISS_BUTTON = "Don't show this again";
