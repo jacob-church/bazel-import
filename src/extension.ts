@@ -10,6 +10,16 @@ const DISMISS_BUTTON = "Don't show this again";
 let terminal: vscode.Terminal | undefined = undefined;
 
 export function activate(context: vscode.ExtensionContext) {
+    vscode.commands.registerCommand('bazel-import.openBazel', async () => {
+        const activeUri = vscode.window.activeTextEditor?.document.uri;
+        if (activeUri) {
+            const currTargetPair = await uriToBuildTarget(uriToContainingUri(activeUri))
+            if (currTargetPair) {
+                const buildFileUri = currTargetPair[1];
+                vscode.workspace.openTextDocument(buildFileUri);
+            }
+        }
+    });
     vscode.workspace.onDidChangeTextDocument(async (changeEvent: vscode.TextDocumentChangeEvent) => {
         const targets = new Set();
         let currentTarget: string | undefined;
