@@ -2,7 +2,7 @@
 	"name": "bazel-import",
 	"displayName": "bazel-import",
 	"description": "Automatically add Bazel deps when you import code",
-	"version": "0.0.1",
+	"version": "0.0.3",
 	"engines": {
 		"vscode": "^1.66.0"
 	},
