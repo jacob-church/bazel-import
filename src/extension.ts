@@ -13,7 +13,7 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('bazel-import.openBazel', async () => {
         const activeUri = vscode.window.activeTextEditor?.document.uri;
         if (activeUri) {
-            const currTargetPair = await uriToBuildTarget(uriToContainingUri(activeUri))
+            const currTargetPair = await uriToBuildTarget(uriToContainingUri(activeUri));
             if (currTargetPair) {
                 const buildFileUri = currTargetPair[1];
                 vscode.workspace.openTextDocument(buildFileUri);
@@ -21,9 +21,9 @@ export function activate(context: vscode.ExtensionContext) {
         }
     });
     vscode.workspace.onDidChangeTextDocument(async (changeEvent: vscode.TextDocumentChangeEvent) => {
-        const targets = new Set();
+        const targets = new Set(); // if changeEvent.document !== window.activeTextEditor?.document, we should ignore this change
         let currentTarget: string | undefined;
-        let buildFileUri: vscode.Uri | undefined;
+        let buildFileUri: vscode.Uri | undefined; // let's assert that the changeEvent matches the currently open text editor; that will filter out changes that come from other sources
 
         // Step 1: Find symbol position for dependency lookup and external build targets (e.g. @angule/core)
         const [positions, externalTargets] = positionsFromTextChanges(changeEvent.contentChanges);

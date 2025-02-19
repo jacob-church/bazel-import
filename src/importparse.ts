@@ -9,7 +9,7 @@ export async function urisFromTextChanges(positions: vscode.Position[], docUri: 
     const maybeUris = await Promise.all(
         positions.map(async (position) => {
             const locations: (vscode.Location | vscode.LocationLink)[] = await vscode.commands.executeCommand(
-                'vscode.executeDefinitionProvider',
+                'vscode.executeTypeDefinitionProvider',
                 docUri,
                 position,
             );
@@ -22,6 +22,9 @@ export async function urisFromTextChanges(positions: vscode.Position[], docUri: 
     );
     return maybeUris.filter((uri) => !!uri) as vscode.Uri[];
 }
+
+const [SINGLE_LINE_REGEX, END_LINE_REGEX] = pathPrefixRegex();
+const EXTERNAL_TARGETS = vscode.workspace.getConfiguration('bazel-import').externalTargets;
 
 /**
  * Reduce text changes to the cursor positions that can be used for finding original symbol definitions
@@ -37,11 +40,8 @@ export function positionsFromTextChanges(
             continue;
         }
 
-        const [singleLineRegex, endLineRegex] = pathPrefixRegex();
         const allImports = splitOnImports(change.text);
         let offset = 0; // keep track of where our imported symbols are in relation to the range of this chunk of text
-
-        const externalTargets = vscode.workspace.getConfiguration('bazel-import').externalTargets;
 
         for (const maybeImport of allImports) {
             // "easy" match; new import statements
@@ -55,29 +55,30 @@ export function positionsFromTextChanges(
                 // we only need one symbol per import statement in order to fetch the right dependency
                 if (lines.length === 1) {
                     // single line import
-                    const match = singleLineRegex.exec(lines[0]);
-                    const symbols = match && match.length > 1 && match[1];
+                    const match = SINGLE_LINE_REGEX.exec(lines[0]);
+                    const path = match && match.length > 2 && match[2];
                     // if one of our external targets is found, stash its corresponding target
-                    if (match && match.length > 2 && match[2] in externalTargets) {
-                        targets.add(externalTargets[match[2]]);
+                    if (match && match.length > 3 && match[3] in EXTERNAL_TARGETS) {
+                        targets.add(EXTERNAL_TARGETS[match[3]]);
                     } else {
-                        // snag the position of the first symbol for looking up other build targets
-                        symbols &&
+                        // snag the position of the module path for looking up other build targets
+                        path &&
                             positions.push(
-                                new vscode.Position(change.range.start.line + offset, lines[0].indexOf(symbols)),
+                                new vscode.Position(change.range.start.line + offset, lines[0].indexOf(path)),
                             );
                     }
                 } else {
                     // multi-line import
-                    const match = endLineRegex.exec(lines[lines.length - 1]);
+                    const match = END_LINE_REGEX.exec(lines[lines.length - 1]);
+                    const path = match && match.length > 1 && match[1];
                     if (match) {
-                        if (match.length > 1 && match[1] in externalTargets) {
-                            targets.add(externalTargets[match[1]]);
+                        if (match.length > 2 && match[2] in EXTERNAL_TARGETS) {
+                            targets.add(EXTERNAL_TARGETS[match[2]]);
                         } else {
-                            positions.push(
+                            path && positions.push(
                                 new vscode.Position(
-                                    change.range.start.line + offset + 1,
-                                    lines[1].length - lines[1].trimStart().length,
+                                    change.range.start.line + offset + (lines.length - 1), // get to last line
+                                    lines[lines.length - 1].indexOf(path), // get to import path
                                 ),
                             );
                         }
@@ -96,8 +97,8 @@ export function positionsFromTextChanges(
 
 function pathPrefixRegex(): [RegExp, RegExp] {
     const pathPrefixes = pathPrefixFromConfig();
-    const singleLineRegex = new RegExp(`^import {\\s*(.*)\\s*} from '(${pathPrefixes}).*`, 'g');
-    const endLineRegex = new RegExp(`^} from '(${pathPrefixes}).*`);
+    const singleLineRegex = new RegExp(`^import {\\s*(.*)\\s*} from '((${pathPrefixes}).*)`, 'g');
+    const endLineRegex = new RegExp(`^} from '((${pathPrefixes}).*)`);
     return [singleLineRegex, endLineRegex];
 }
 
