@@ -21,6 +21,9 @@ export function activate(context: vscode.ExtensionContext) {
         }
     });
     vscode.workspace.onDidChangeTextDocument(async (changeEvent: vscode.TextDocumentChangeEvent) => {
+        if (changeEvent.contentChanges.length === 0 || changeEvent.document.uri.fsPath !== vscode.window.activeTextEditor?.document.uri.fsPath) {
+            return; // skip empty changes and changes from other documents
+        }
         const targets = new Set(); // if changeEvent.document !== window.activeTextEditor?.document, we should ignore this change
         let currentTarget: string | undefined;
         let buildFileUri: vscode.Uri | undefined; // let's assert that the changeEvent matches the currently open text editor; that will filter out changes that come from other sources
