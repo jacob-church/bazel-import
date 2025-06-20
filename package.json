@@ -14,55 +14,69 @@
 	],
 	"main": "./out/extension.js",
 	"contributes": {
-        "commands": [
-            {
-                "command": "bazel-import.openBazel",
-                "title": "Nearest Bazel file",
-                "category": "Open"
-            }
-        ],
-        "configuration":[
-            {
-                "title": "Bazel Import",
-                "properties": {
-                    "bazel-import.buildFile": {
-                        "type": "string",
-                        "default": "BUILD.bazel",
-                        "description": "The file name convention where your build targets are defined."
-                    },
-                    "bazel-import.importPathPrefixes": {
-                        "type": "array",
-                        "default": [],
-                        "description": "Path prefixes that should be considered for auto-adding Bazel deps. An empty array will consider all imports."
-                    },
-                    "bazel-import.targetPrefixes": {
-                        "type": ["array", "string", "null"],
-                        "default": [
-                            "/cake/app/webroot/ts",
-                            "/extensibility"
-                        ],
-                        "description": "Target prefixes that should be considered for auto-adding Bazel deps."
-                    },
-                    "bazel-import.externalTargets": {
-                        "type": "object",
-                        "default": {
-                            "@angular/core": "@npm//@angular/core",
-                            "@angular/common": "@npm//@angular/common",
-                            "@angular/router": "@npm//@angular/router",
-                            "@angular/forms": "@npm//@angular/forms",
-                            "@angular/platform-browser": "@npm//@angular/platform-browser",
-                            "rxjs": "@npm//rxjs"
-                        },
-                        "description": "External dependency path prefixes and their associated external build targets."
-                    },
-                    "bazel-import.notifyChange": {
-                        "type": "boolean",
-                        "default": true,
-                        "description": "Notify the user that a BUILD.bazel file has beend updated."
-                    }
-                }
-            }
-        ]
+		"commands": [
+			{
+				"command": "bazel-import.openBazel",
+				"title": "Nearest Bazel file",
+				"category": "Open"
+			}
+		],
+		"configuration": [
+			{
+				"title": "Bazel Import",
+				"properties": {
+					"bazel-import.buildFile": {
+						"type": "string",
+						"default": "BUILD.bazel",
+						"description": "The file name convention where your build targets are defined."
+					},
+					"bazel-import.importPathPrefixes": {
+						"type": "array",
+						"default": [],
+						"description": "Path prefixes that should be considered for auto-adding Bazel deps. An empty array will consider all imports."
+					},
+					"bazel-import.targetPrefixes": {
+						"type": [
+							"array",
+							"string",
+							"null"
+						],
+						"default": [
+							"/cake/app/webroot/ts",
+							"/extensibility"
+						],
+						"description": "Target prefixes that should be considered for auto-adding Bazel deps."
+					},
+					"bazel-import.externalTargets": {
+						"type": "object",
+						"default": {
+							"@angular/core": "@npm//@angular/core",
+							"@angular/common": "@npm//@angular/common",
+							"@angular/router": "@npm//@angular/router",
+							"@angular/forms": "@npm//@angular/forms",
+							"@angular/platform-browser": "@npm//@angular/platform-browser",
+							"rxjs": "@npm//rxjs"
+						},
+						"description": "External dependency path prefixes and their associated external build targets."
+					},
+					"bazel-import.notifyChange": {
+						"type": "boolean",
+						"default": true,
+						"description": "Notify the user that a BUILD.bazel file has been updated."
+					},
+					"bazel-import.maxPackageSize": {
+						"type": "integer",
+						"default": 10,
+						"description": "The maximum package size for removing dependencies. The larger this number, the slower the extension"
+					},
+					"bazel-import.maxCacheSize": {
+						"type": "integer",
+						"default": 10,
+						"description": "The maximum packages to cache. The larger this number the more memory the extension will use (and it may slow the extension with O(n) for every file opened)"
+					}
+				}
+			}
+		]
 	},
 	"scripts": {
 		"vscode:prepublish": "npm run compile",
@@ -70,24 +84,25 @@
 		"watch": "tsc -watch -p ./",
 		"pretest": "npm run compile && npm run lint",
 		"lint": "eslint src --ext ts",
-		"test": "node ./out/test/runTest.js"
+		"test": "vscode-test"
 	},
 	"devDependencies": {
-		"@types/vscode": "^1.66.0",
 		"@types/glob": "^7.2.0",
 		"@types/mocha": "^9.1.0",
 		"@types/node": "14.x",
+		"@types/vscode": "^1.66.0",
 		"@typescript-eslint/eslint-plugin": "^5.16.0",
 		"@typescript-eslint/parser": "^5.16.0",
+		"@vscode/test-cli": "^0.0.11",
+		"@vscode/test-electron": "^2.5.2",
 		"eslint": "^8.11.0",
 		"glob": "^7.2.0",
 		"mocha": "^9.2.2",
-		"typescript": "^4.5.5",
-		"@vscode/test-electron": "^2.1.3"
+		"typescript": "^4.5.5"
 	},
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/jacob-church/bazel-import.git"
-    },
-    "publisher": "jacob-church"
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/jacob-church/bazel-import.git"
+	},
+	"publisher": "jacob-church"
 }
