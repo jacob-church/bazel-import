@@ -20,13 +20,88 @@ export function activate(context: vscode.ExtensionContext) {
             }
         }
     });
+
+    vscode.window.tabGroups.onDidChangeTabs(event => {
+        console.log('--- Tab Change Event ---', event);
+        if (event.opened && event.opened.length > 0) {
+            onOpen(event.opened);
+            console.log(tabCache()); 
+        }
+        if (event.closed && event.closed.length > 0) {
+            onClosed(event.closed); 
+            console.log(tabCache()); 
+        }
+    });
+
+    vscode.window.onDidChangeActiveTextEditor(updateActiveEditor);
+
     vscode.workspace.onDidChangeTextDocument(async (changeEvent: vscode.TextDocumentChangeEvent) => {
         if (changeEvent.contentChanges.length === 0 || changeEvent.document.uri.fsPath !== vscode.window.activeTextEditor?.document.uri.fsPath) {
             return; // skip empty changes and changes from other documents
         }
         const targets = new Set(); // if changeEvent.document !== window.activeTextEditor?.document, we should ignore this change
-        let currentTarget: string | undefined;
         let buildFileUri: vscode.Uri | undefined; // let's assert that the changeEvent matches the currently open text editor; that will filter out changes that come from other sources
+
+        // DELETIONS
+        if (deletionEnabled && activeFile) {
+            
+            // Step 1: Get the import deletions for evaluation 
+            const deletedImports = getDeletionTargets(activeFile.documentState as string, changeEvent);
+
+            // Step 2: Find the build files for deleted imports
+            for (const deletedImport of deletedImports) {
+                const buildUri = await getBuildTargetFromFP(deletedImport, uriToContainingUri(activeFile.uri));
+                deletedDeps.add(buildUri[0]); 
+            }
+            console.log(deletedDeps); 
+
+            // Step 3: Evaluate remaining imports to see if they connect to any of the build files 
+            // from the deleted imports [remove these build files if so (convert to set for deletion?)]
+            await Promise.all(packageSources.map(async uri => {
+                const deps = await getBuildTargetsFromFile(uri!);
+                for (let [target, _] of deps as [string, vscode.Uri][]) {
+                    deletedDeps.delete(target); 
+                    if (deletedDeps.size === 0) {
+                        break; 
+                    }
+                } 
+                if (deletedDeps.size === 0) {
+                    return;
+                }
+            }));
+
+            // Step 4: If there are build files left, removed those dependencies from the target BUILD.bazel
+            console.log("Deps to still delete: ", deletedDeps); 
+            if (!terminal) {
+                terminal = vscode.window.createTerminal({
+                    hideFromUser: true,
+                    isTransient: true,
+                });
+            }
+            const deps = Array.from(deletedDeps).join(' ');
+            if (deps.trim().length === 0) {
+                return; 
+            }
+            const buildozer = `buildozer "remove deps ${deps}" "${currentTarget}"`;
+            console.log(`Executing: ${buildozer}`);
+            terminal.sendText(buildozer);
+            if (vscode.workspace.getConfiguration('bazel-import').notifyChange) {
+                const buildFile = vscode.workspace.getConfiguration('bazel-import').buildFile;
+                vscode.window
+                    .showInformationMessage(`Bazel deps removed from ${buildFile}`, OPEN_BUTTON, DISMISS_BUTTON)
+                    .then((button) => {
+                        if (button === OPEN_BUTTON && currBuildURI) {
+                            vscode.window.showTextDocument(currBuildURI);
+                        }
+                        if (button === DISMISS_BUTTON) {
+                            vscode.workspace.getConfiguration('bazel-import').update('notifyChange', false);
+                        }
+                    });
+            }
+            // Step 5: Update document state
+            activeFile.documentState = changeEvent.document.getText(); 
+            
+        }
 
         // Step 1: Find symbol position for dependency lookup and external build targets (e.g. @angule/core)
         const [positions, externalTargets] = positionsFromTextChanges(changeEvent.contentChanges);
@@ -84,6 +159,8 @@ export function activate(context: vscode.ExtensionContext) {
     });
 }
 
+// TODO: cleanup listeners
 export function deactivate() {
+    deletedDeps.clear();
     terminal?.dispose();
 }

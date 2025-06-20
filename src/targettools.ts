@@ -3,6 +3,7 @@ import {uriToContainingUri} from './uritools';
 
 const BUILD_FILE_NAME = vscode.workspace.getConfiguration('bazel-import').buildFile;
 const TARGET_PREFIXES = vscode.workspace.getConfiguration('bazel-import').targetPrefixes;
+const TARGETS_THRESHOLD = vscode.workspace.getConfiguration('bazel-import').maxPackageSize;
 /**
  * Recursively search up the file tree to the nearest BUILD.bazel file
  * and return the build target path
@@ -22,6 +23,74 @@ export async function uriToBuildTarget(uri: vscode.Uri): Promise<[string, vscode
         currentUri = uriToContainingUri(currentUri);
     }
 }
+
+/** 
+ * Recursively search down the file tree until a package (i.e., BUILD.bazel file)
+ * or leaf is reached and return the source files in the subdirectories.
+ * 
+ * In other words, get the source files for subdirectories of a bazel target.
+ */
+async function getSubDirectoryTargets(uri: vscode.Uri): Promise<vscode.Uri[]> {
+    let subTargets = new Array(); 
+    let currentUri = uri; 
+    const files = await vscode.workspace.fs.readDirectory(currentUri);
+    
+    // Check for build file first so that it returns nothing from a different package
+    if (files.some(([name]) => name === BUILD_FILE_NAME)) {
+        return subTargets; 
+    }
+
+    for (const file of files) {
+        const [name, type] = file;
+        const fileURI = vscode.Uri.joinPath(currentUri, name);  
+        if (type === vscode.FileType.File) {
+            subTargets.push(fileURI);
+        }
+        else if (type === vscode.FileType.Directory) {
+            subTargets.push(...await getSubDirectoryTargets(fileURI));
+        }
+        if (subTargets.length > TARGETS_THRESHOLD) {
+            return subTargets; 
+        }
+    }
+    return subTargets; 
+}
+
+export async function otherTargetsUris(uri: vscode.Uri): Promise<[vscode.Uri[], string, vscode.Uri] | undefined> {
+    let currentUri = uri; 
+    const targetUris: vscode.Uri[] = new Array(); 
+    let targetPath; let buildUri; 
+    while (currentUri.fsPath !== '/') {
+        const files = await vscode.workspace.fs.readDirectory(currentUri);
+        let buildFound = false; 
+        for (const file of files) {
+            const [name, type] = file; 
+            if (type !== vscode.FileType.File) {
+                if (type === vscode.FileType.Directory) {
+                    const subdirectoryUri = vscode.Uri.joinPath(currentUri, name); 
+                    targetUris.push(...await getSubDirectoryTargets(subdirectoryUri));
+                }
+                continue; 
+            }
+            if (name === BUILD_FILE_NAME) {
+                targetPath = filePathToTargetPath(currentUri.fsPath);
+                buildUri = vscode.Uri.joinPath(currentUri, BUILD_FILE_NAME);
+                if (!targetPath) {
+                    return undefined; 
+                }
+                buildFound = true; 
+            }
+            else {
+                targetUris.push(vscode.Uri.joinPath(currentUri, name));
+            }
+        }
+        if (buildFound) {
+            return [targetUris, targetPath as string, buildUri as vscode.Uri];  
+        }
+        currentUri = uriToContainingUri(currentUri);
+    }
+}
+
 
 /**
  * @param path e.g. /home/<dev>/lucid/main/<target-prefix>/blah/blah/blah
