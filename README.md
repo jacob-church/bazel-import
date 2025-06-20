@@ -12,6 +12,7 @@ This extension assumes:
 
 - your TS Bazel target names match the location of your build files
 - you have `buildozer` installed on your system
+- your changes capture a full import (i.e., line adds/deletes instead of single character adds/deletes) // Normal for linting and automatic import management
 
 ## Extension Settings
 

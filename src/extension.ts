@@ -1,13 +1,136 @@
 import * as vscode from 'vscode';
 import {uriToContainingUri} from './uritools';
-import {uriToBuildTarget} from './targettools';
+import {otherTargetsUris, uriToBuildTarget} from './targettools';
 import {positionsFromTextChanges, urisFromTextChanges} from './importparse';
 import {getImportedTargets} from './bazeltools';
+import { getBuildTargetFromFP, getBuildTargetsFromFile, getDeletionTargets } from './removedeps';
+import { updateMaxPackageSize } from './userinteract';
+import { onClosed, onOpen, tabCache } from './tabs';
+import { updateActiveEditor } from './active';
+import path = require('path');
 
 const OPEN_BUTTON = 'Open';
+const CHANGE_PACKAGE_LIMIT_BUTTON = 'Change max package size';
 const DISMISS_BUTTON = "Don't show this again";
+export const TS_LANGUAGE_ID = 'typescript';
 
 let terminal: vscode.Terminal | undefined = undefined;
+
+
+export interface ActiveFile {
+    documentState: string,
+    uri: vscode.Uri,
+    target: string,
+    buildUri: vscode.Uri,
+    packageSources: vscode.Uri[],
+}
+
+let activeFile: ActiveFile | undefined;
+
+let currBuildURI: vscode.Uri | undefined = undefined; 
+let packageSources: vscode.Uri[] = []; 
+const deletedDeps: Set<string> = new Set(); 
+let currentTarget: string | undefined; 
+
+
+let deletionEnabled = false; 
+
+// HELPER FUNCTIONS
+export function setCurrDocument(documentContents: string) {
+    if (activeFile) {
+        activeFile.documentState = documentContents; 
+    }
+}
+
+const activeStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+
+export function getStatusBarItem() {
+    return activeStatusBarItem;
+}
+
+export async function loadSourcePackages(document: vscode.TextDocument) {
+    const currentTargetPair = await otherTargetsUris(uriToContainingUri(document.uri));
+    const packageSources = currentTargetPair?.[0] ?? []; 
+    const currentTarget = currentTargetPair?.[1];
+    const currBuildURI = currentTargetPair?.[2];
+    
+    if (!currentTarget || !packageSources || !currBuildURI) {
+        vscode.window.showErrorMessage(
+            `${path.basename(document.uri.fsPath)} failed to open`
+        );
+        return;
+    }
+
+    activeFile = {
+        packageSources: packageSources,
+        target: currentTarget,
+        buildUri: currBuildURI, 
+        documentState: document.getText(),
+        uri: document.uri
+    };
+
+    validatePackageSize(); 
+};
+
+export function getActiveFile(): ActiveFile | undefined {
+    return activeFile; 
+}
+
+export function setActiveFile(update: ActiveFile) {
+    activeFile = update;
+}
+
+
+/** 
+ * Checks if the new document is in the old document's directory (i.e., does not need package update)
+*/
+export function shouldUpdatePackages(document: vscode.TextDocument) {
+    let oldDir = undefined; 
+    if (activeFile) {
+        oldDir = uriToContainingUri(activeFile.buildUri);
+    }
+
+    let newDir = uriToContainingUri(document.uri); 
+    if (newDir.toString() === oldDir?.toString()) {
+        console.log("No need to reload the build packages");
+        activeFile!.uri = document.uri;
+        activeFile!.documentState = document.getText(); 
+        deletionEnabled = true; 
+        return undefined;
+    }
+    deletionEnabled = false; 
+    return newDir; 
+}
+
+/**
+ * Sets the deletion enabled flag depending on the size of the current package and informs user of status
+ */ 
+export function validatePackageSize() {
+    const maxPackageSize: number = vscode.workspace.getConfiguration('bazel-import').maxPackageSize; 
+    // If there are too many sources in the packages, deletion analysis won't run
+    if ((activeFile?.packageSources.length ?? maxPackageSize + 1) <= maxPackageSize) {
+        deletionEnabled = true; 
+    }
+    else {
+        // TODO: relegate to status bar? Something like '$(error)' with the tooltip explaining error and a command that works? I think that would be worse
+        vscode.window
+            .showWarningMessage(
+                `Too many files in package. Increase max package size? (current max: ${maxPackageSize})`, 
+                CHANGE_PACKAGE_LIMIT_BUTTON
+            ).then((button) => {
+                if (button === CHANGE_PACKAGE_LIMIT_BUTTON) {
+                    updateMaxPackageSize(); 
+                }
+            });
+    }
+    
+    const deletion = deletionEnabled ? 'enabled' : 'disabled';
+
+    // TODO: Keep in status bar? 
+    vscode.window.showInformationMessage(
+        `${path.basename(vscode.window.activeTextEditor?.document.uri.fsPath ?? "undefined")} opened with deletion ${deletion}`
+    );
+}
 
 export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('bazel-import.openBazel', async () => {
@@ -110,7 +233,8 @@ export function activate(context: vscode.ExtensionContext) {
             return;
         }
 
-        // Step 2: Determine the current build target (e.g. where are we adding new dependencies to?)
+        // Step 2: Determine the current build target (e.g. where are we adding new dependencies to?) [DELETE] 
+        // TODO: refactor so it evaluates whether the current target exists (which it should)
         const currentUri = uriToContainingUri(changeEvent.document.uri);
         const currentTargetPair = await uriToBuildTarget(currentUri);
         currentTarget = currentTargetPair?.[0];
