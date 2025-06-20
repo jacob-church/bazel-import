@@ -3,7 +3,7 @@ import {uriToContainingUri} from './uritools';
 
 const BUILD_FILE_NAME = vscode.workspace.getConfiguration('bazel-import').buildFile;
 const TARGET_PREFIXES = vscode.workspace.getConfiguration('bazel-import').targetPrefixes;
-const TARGETS_THRESHOLD = vscode.workspace.getConfiguration('bazel-import').maxPackageSize;
+
 /**
  * Recursively search up the file tree to the nearest BUILD.bazel file
  * and return the build target path
@@ -30,7 +30,7 @@ export async function uriToBuildTarget(uri: vscode.Uri): Promise<[string, vscode
  * 
  * In other words, get the source files for subdirectories of a bazel target.
  */
-async function getSubDirectoryTargets(uri: vscode.Uri): Promise<vscode.Uri[]> {
+async function getSubDirectorySources(uri: vscode.Uri): Promise<vscode.Uri[]> {
     let subTargets = new Array(); 
     let currentUri = uri; 
     const files = await vscode.workspace.fs.readDirectory(currentUri);
@@ -47,9 +47,9 @@ async function getSubDirectoryTargets(uri: vscode.Uri): Promise<vscode.Uri[]> {
             subTargets.push(fileURI);
         }
         else if (type === vscode.FileType.Directory) {
-            subTargets.push(...await getSubDirectoryTargets(fileURI));
+            subTargets.push(...await getSubDirectorySources(fileURI));
         }
-        if (subTargets.length > TARGETS_THRESHOLD) {
+        if (subTargets.length > vscode.workspace.getConfiguration('bazel-import').maxPackageSize) {
             return subTargets; 
         }
     }
@@ -60,17 +60,20 @@ export async function otherTargetsUris(uri: vscode.Uri): Promise<[vscode.Uri[], 
     let currentUri = uri; 
     const targetUris: vscode.Uri[] = new Array(); 
     let targetPath; let buildUri; 
+    const subdirectories = new Set<string>();
     while (currentUri.fsPath !== '/') {
         const files = await vscode.workspace.fs.readDirectory(currentUri);
         let buildFound = false; 
         for (const file of files) {
             const [name, type] = file; 
+            if (type === vscode.FileType.Directory) {
+                const subdirectoryUri = vscode.Uri.joinPath(currentUri, name);
+                if (!subdirectories.has(subdirectoryUri.toString())) {
+                    targetUris.push(...await getSubDirectorySources(subdirectoryUri));
+                } 
+            }
             if (type !== vscode.FileType.File) {
-                if (type === vscode.FileType.Directory) {
-                    const subdirectoryUri = vscode.Uri.joinPath(currentUri, name); 
-                    targetUris.push(...await getSubDirectoryTargets(subdirectoryUri));
-                }
-                continue; 
+                continue;
             }
             if (name === BUILD_FILE_NAME) {
                 targetPath = filePathToTargetPath(currentUri.fsPath);
@@ -87,6 +90,7 @@ export async function otherTargetsUris(uri: vscode.Uri): Promise<[vscode.Uri[], 
         if (buildFound) {
             return [targetUris, targetPath as string, buildUri as vscode.Uri];  
         }
+        subdirectories.add(currentUri.toString());
         currentUri = uriToContainingUri(currentUri);
     }
 }
