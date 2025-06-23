@@ -73,6 +73,11 @@
 						"type": "integer",
 						"default": 10,
 						"description": "The maximum packages to cache. The larger this number the more memory the extension will use (and it may slow the extension with O(n) for every file opened)"
+					},
+					"bazel-import.enableDeletion": {
+						"type": "boolean",
+						"default": false,
+						"description": "Remove bazel dependencies"
 					}
 				}
 			}

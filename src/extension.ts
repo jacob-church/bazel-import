@@ -93,8 +93,9 @@ export function validatePackageSize() {
     }
     
     const deletion = getEnabledStatus();
-
-    // TODO: Keep in status bar? 
+    if (!vscode.workspace.getConfiguration('bazel-import').notifyChange) {
+        return; 
+    }
     vscode.window.showInformationMessage(
         `${path.basename(vscode.window.activeTextEditor?.document.uri.fsPath ?? "undefined")} opened with deletion ${deletion}`
     );
@@ -126,7 +127,7 @@ export function activate(context: vscode.ExtensionContext) {
         let buildFileUri: vscode.Uri | undefined; // let's assert that the changeEvent matches the currently open text editor; that will filter out changes that come from other sources
 
         // DELETIONS
-        if (deletionEnabled && activeFile) {
+        if (deletionEnabled && activeFile && vscode.workspace.getConfiguration('bazel-import').enableDeletion) {
             
             // Step 1: Get the import deletions for evaluation 
             const deletedImports = getDeletionTargets(activeFile.documentState, changeEvent);

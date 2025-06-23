@@ -46,7 +46,7 @@ async function loadSourcePackages(document: vscode.TextDocument) {
 };
 
 export async function updateActiveEditor(editor: vscode.TextEditor | undefined) {
-    if (editor === undefined) {
+    if (editor === undefined || !vscode.workspace.getConfiguration('bazel-import').enableDeletion) {
         return; 
     }
 
