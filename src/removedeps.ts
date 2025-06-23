@@ -81,7 +81,6 @@ const getImportsFromFile = (fileText: string): RegExpMatchArray[] => {
     return Array.from(fileText.matchAll(query));
 };
 
-
 export const getBuildTargetsFromFile = async (fileUri: vscode.Uri) => {
     const file = await vscode.workspace.openTextDocument(fileUri); 
     const fileText = file!.getText(); 

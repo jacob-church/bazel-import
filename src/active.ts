@@ -1,6 +1,9 @@
 import * as vscode from 'vscode';
 import { Cache } from './basecache';
-import {getActiveFile, getStatusBarItem, loadSourcePackages, setActiveFile, shouldUpdatePackages, TS_LANGUAGE_ID} from './extension';
+import {getActiveFile, getEnabledStatus, getStatusBarItem, setActiveFile, handleActiveFileDirectoryChange, TS_LANGUAGE_ID, validatePackageSize} from './extension';
+import {uriToContainingUri} from './uritools';
+import {otherTargetsUris} from './targettools';
+import path = require('path');
 
 const CACHE_SIZE: number = Number(vscode.workspace.getConfiguration('bazel-import').maxCacheSize);
 const cache = new Cache<ActiveKey,ActiveData>(CACHE_SIZE);
@@ -18,14 +21,39 @@ function urisFromStrings(strings: string[]): vscode.Uri[] {
     return strings.map(strUri => vscode.Uri.parse(strUri)); 
 }
 
-export async function updateActiveEditor(editor: vscode.TextEditor | undefined) {
-    const statusItem = getStatusBarItem();
+async function loadSourcePackages(document: vscode.TextDocument) {
+    const currentTargetPair = await otherTargetsUris(uriToContainingUri(document.uri));
+    const packageSources = currentTargetPair?.[0] ?? []; 
+    const currentTarget = currentTargetPair?.[1];
+    const currBuildURI = currentTargetPair?.[2];
+    
+    if (!currentTarget || !packageSources || !currBuildURI) {
+        vscode.window.showErrorMessage(
+            `${path.basename(document.uri.fsPath)} failed to open`
+        );
+        return;
+    }
 
+    setActiveFile({
+        packageSources: packageSources,
+        target: currentTarget,
+        buildUri: currBuildURI, 
+        documentState: document.getText(),
+        uri: document.uri
+    });
+
+    validatePackageSize(); 
+};
+
+export async function updateActiveEditor(editor: vscode.TextEditor | undefined) {
     if (editor === undefined) {
         return; 
     }
 
+    const statusItem = getStatusBarItem();
+    statusItem.show(); 
     const document = editor.document; 
+    const fileName = document.fileName.substring(document.fileName.lastIndexOf('/') + 1);
     
     if (document.languageId !== TS_LANGUAGE_ID) {
         statusItem.text = '$(eye-closed)';
@@ -35,41 +63,41 @@ export async function updateActiveEditor(editor: vscode.TextEditor | undefined) 
 
     statusItem.text = '$(loading~spin)';
     statusItem.tooltip = `Loading packages for deletion analysis. Current package size is ${vscode.workspace.getConfiguration('bazel-import').maxPackageSize}`; 
-    statusItem.show(); 
 
-    const newDir = shouldUpdatePackages(document); // TODO: rename? 
+    const newDir = handleActiveFileDirectoryChange(document);
     if (newDir === undefined) {
-        statusItem.text = '$(wand)';
-        statusItem.tooltip = 'Deletions enabled'; 
+        setDeletionStatus(statusItem, fileName);
         return; 
     }
-    let activeFile = getActiveFile();  
 
     let found = false; 
     for (const {key, value} of cache) {
         if (value?.packageSources.has(document.uri.toString())) {
-            const packageSources = urisFromStrings(Array.from(value.packageSources)); // Save to package sources in extension.ts
+            const packageSources = urisFromStrings(Array.from(value.packageSources));
             const buildUri = value.buildUri; 
             const target = key;
+
             setActiveFile({
                 packageSources: packageSources,
                 buildUri: buildUri,
                 target: target.target, 
                 documentState: document.getText(),
                 uri: document.uri,
-            });            
+            });
+
             found = true; 
-            // update the lru cache ordering because iterating the cache does not update ordering
-            cache.get(key); 
-            break; 
+            cache.get(key);
+            break;
         }
     }
     if (!found) {
-        await loadSourcePackages(document); // Add to cache
-        
+        await loadSourcePackages(document); 
+    }
+    else {
+        validatePackageSize();
     }
 
-    activeFile = getActiveFile(); 
+    const activeFile = getActiveFile(); // Active file needs to be locked
     if (activeFile === undefined) {
         throw Error("Unexpected null active file"); 
     }
@@ -80,6 +108,11 @@ export async function updateActiveEditor(editor: vscode.TextEditor | undefined) 
         buildUri: activeFile.buildUri,
     });
 
+    setDeletionStatus(statusItem, fileName); // TODO: factor out duplicate
+}
+
+function setDeletionStatus(statusItem: vscode.StatusBarItem, fileName: string) {
     statusItem.text = '$(wand)';
-    statusItem.tooltip = 'Deletions enabled'; 
+    const enabledStatus = getEnabledStatus();
+    statusItem.tooltip = new vscode.MarkdownString(`Deletions ${enabledStatus} for\n\`${fileName}\``);
 }
