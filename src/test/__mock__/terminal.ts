@@ -35,5 +35,5 @@ export class MockTerminal implements vscode.Terminal {
 }
 
 export type MockData = {
-    data?: string
+    data: string
 };

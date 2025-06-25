@@ -7,7 +7,6 @@ import { getBuildTargetFromFP, getBuildTargetsFromFile, getDeletionTargets } fro
 import { updateMaxPackageSize } from './userinteract';
 import { updateActiveEditor } from './active';
 import path = require('path');
-import { performance } from 'perf_hooks';
 
 const OPEN_BUTTON = 'Open';
 const CHANGE_PACKAGE_LIMIT_BUTTON = 'Change max package size';
@@ -16,10 +15,19 @@ export const TS_LANGUAGE_ID = 'typescript';
 
 let terminal: vscode.Terminal | undefined = undefined;
 
+/**
+ * Updates the terminal (used for testing to mock behavior)
+ * @param update A mocked terminal
+ */
+
 export function setTerminal(update: vscode.Terminal) {
     terminal = update;
 }
 
+/**
+ * Returns the current terminal
+ * @returns vscode.Terminal
+ */
 export function getTerminal() {
     return terminal; 
 }
@@ -28,20 +36,33 @@ export enum ExtensionState {
     ready,
     waiting,
     inactive,
-    active, 
-    unloaded
+    active
 }
 
-let _extensionState: ExtensionState = ExtensionState.unloaded;
+/**
+ * For internal testing and monitoring
+ * State that monitors the resolution of extension handlers
+ */
+let extensionState: ExtensionState = ExtensionState.inactive;
 
-export function getState(): ExtensionState {
-    return _extensionState; 
+/**
+ * @returns the current state of the extension handlers
+ */
+export function getExtensionState(): ExtensionState {
+    return extensionState; 
 }
 
-export function setState(state: ExtensionState): void {
-    _extensionState = state; 
+/**
+ * For testing and monitoring
+ * @param state updates the state of the extension
+ */
+export function setExtensionState(state: ExtensionState): void {
+    extensionState = state; 
 }
 
+/**
+ * Stores relevant information about the current active editor
+ */
 export interface ActiveFile {
     documentState: string,
     uri: vscode.Uri,
@@ -52,7 +73,8 @@ export interface ActiveFile {
 
 let activeFile: ActiveFile | undefined;
 
-export let deletionEnabled = false; 
+// Toggle that is set after the active file is loaded
+let deletionEnabled = false; 
 
 // HELPER FUNCTIONS
 export function setCurrDocument(documentContents: string) {
@@ -135,62 +157,70 @@ async function deleteDeps(changeEvent: vscode.TextDocumentChangeEvent) {
     if (activeFile === undefined) {
         return;
     }
-    setState(ExtensionState.waiting);
+    setExtensionState(ExtensionState.waiting);
 
-    // Step 1: Get the import deletions for evaluation 
-    let start = performance.now();
+    // Get the import deletions for evaluation 
     const deletedImports = getDeletionTargets(activeFile.documentState, changeEvent);
     if (deletedImports.length === 0) {
         return;
     }
-    let end = performance.now();
-    console.log(`Time elapsed for 1: ${end - start} ms`);
 
     activeStatusBarItem.text = '$(sync~spin)';
     const beforeTip = activeStatusBarItem.tooltip;
-    activeStatusBarItem.tooltip = 'Performing deletion analysis';
+    activeStatusBarItem.tooltip = 'Getting build files';
 
-    // Step 2: Find the build file(s) for deleted imports
-    start = performance.now();
+    // Find the build file(s) for deleted imports
     const deletedDeps: Set<string> = new Set(); 
     const buildUris = deletedImports.map(deletedImport => getBuildTargetFromFP(deletedImport, activeFile!.uri));
     for (const buildUri of buildUris) {
-        deletedDeps.add(buildUri[0]); 
+        if (buildUri[0] !== activeFile.target) {
+            deletedDeps.add(buildUri[0]); 
+        }
     }
-    end = performance.now();
-    console.log(`Time elapsed for 2: ${end - start} ms`);
-    console.log('Deleted dependencies', deletedDeps); 
 
-    // Step 3: Evaluate remaining imports to see if they connect to any of the build files 
-    // from the deleted imports [remove these build files if so (convert to set for deletion?)]
-    // TODO: does this need a mutex?
-    start = performance.now();
+    if (deletedDeps.size === 0) {
+        if (vscode.workspace.getConfiguration('bazel-import').notifyChange) {
+            console.log("Deletion was in package");
+            vscode.window.showInformationMessage("Bazel deps not removed (deleted import is in package)");
+        }
+        activeStatusBarItem.text = '$(wand)';
+        activeStatusBarItem.tooltip = beforeTip;
+        setExtensionState(ExtensionState.ready);
+        return; 
+    }
+    
+    activeStatusBarItem.tooltip = `Analyzing ${deletedDeps.size} import(s)\n`;
+
+    // Evaluate remaining imports to see if they connect to any of the build files from the deleted imports
     const allDeps = await Promise.all(activeFile.packageSources.map(async uri => getBuildTargetsFromFile(uri!))); 
     console.log(allDeps.flat()); 
     for (let [target, _] of allDeps.flat() as [string, vscode.Uri][]) {
-        deletedDeps.delete(target); 
+        if (deletedDeps.delete(target)) {
+            console.log(`${target} dep still exists\n`);
+        } 
         if (deletedDeps.size === 0) {
             break; 
         }
     }
-    end = performance.now();
-    console.log(`Time elapsed for 3: ${end - start} ms`); 
+    const deps = Array.from(deletedDeps).join(' ');
+
+    // No build files left - Return
+    if (deps.trim().length === 0) {
+        if (vscode.workspace.getConfiguration('bazel-import').notifyChange) {
+            vscode.window.showInformationMessage("Bazel deps not removed (dependency still exists)");
+        }
+        activeStatusBarItem.text = '$(wand)';
+        activeStatusBarItem.tooltip = beforeTip;
+        setExtensionState(ExtensionState.ready);
+        return; 
+    }
 
     // Step 4: If there are build files left, removed those dependencies from the target BUILD.bazel
-    console.log("Deps to still delete: ", deletedDeps); 
     if (!terminal) {
         terminal = vscode.window.createTerminal({
             hideFromUser: true,
             isTransient: true,
         });
-    }
-    const deps = Array.from(deletedDeps).join(' ');
-    if (deps.trim().length === 0) {
-        vscode.window.showInformationMessage("Bazel deps not removed (dependency still exists)");
-        activeStatusBarItem.text = '$(wand)';
-        activeStatusBarItem.tooltip = beforeTip;
-        setState(ExtensionState.ready);
-        return; 
     }
     const buildozer = `buildozer "remove deps ${deps}" "${activeFile.target}"`;
     console.log(`Executing: ${buildozer}`);
@@ -212,12 +242,12 @@ async function deleteDeps(changeEvent: vscode.TextDocumentChangeEvent) {
     activeStatusBarItem.text = '$(wand)';
     activeStatusBarItem.tooltip = beforeTip;
     activeFile.documentState = changeEvent.document.getText(); 
-    setState(ExtensionState.ready);
+    setExtensionState(ExtensionState.ready);
 }
 
 
 export async function activate(context: vscode.ExtensionContext) {
-    vscode.commands.registerCommand('bazel-import.openBazel', async () => {
+    const bazelCommand = vscode.commands.registerCommand('bazel-import.openBazel', async () => {
         const activeUri = vscode.window.activeTextEditor?.document.uri;    
         if (activeUri) {
             const currTargetPair = await uriToBuildTarget(uriToContainingUri(activeUri));
@@ -228,11 +258,9 @@ export async function activate(context: vscode.ExtensionContext) {
         }
     });
 
-    await updateActiveEditor(vscode.window.activeTextEditor);
+    const changeEditorListener = vscode.window.onDidChangeActiveTextEditor(updateActiveEditor);
 
-    vscode.window.onDidChangeActiveTextEditor(updateActiveEditor);
-
-    vscode.workspace.onDidChangeTextDocument(async (changeEvent: vscode.TextDocumentChangeEvent) => {
+    const changeTextListener = vscode.workspace.onDidChangeTextDocument(async (changeEvent: vscode.TextDocumentChangeEvent) => {
         if (changeEvent.contentChanges.length === 0 || changeEvent.document.uri.fsPath !== vscode.window.activeTextEditor?.document.uri.fsPath) {
             return; // skip empty changes and changes from other documents
         }
@@ -252,11 +280,13 @@ export async function activate(context: vscode.ExtensionContext) {
         }
 
         // Step 2: Determine the current build target (e.g. where are we adding new dependencies to?) [DELETE] 
-        // TODO: refactor so it evaluates whether the current target exists (which it should)
-        const currentUri = uriToContainingUri(changeEvent.document.uri);
-        const currentTargetPair = await uriToBuildTarget(currentUri);
-        const currentTarget = currentTargetPair?.[0];
-        buildFileUri = currentTargetPair?.[1];
+        const currentUri = activeFile?.uri ?? uriToContainingUri(changeEvent.document.uri);
+        let currentTargetPair: [string, vscode.Uri] | undefined;
+        if (!activeFile) {
+            currentTargetPair = await uriToBuildTarget(currentUri);
+        }
+        const currentTarget = activeFile?.target ?? currentTargetPair?.[0];
+        buildFileUri = activeFile?.buildUri ?? currentTargetPair?.[1];
         if (!currentTarget) {
             return;
         }
@@ -299,6 +329,10 @@ export async function activate(context: vscode.ExtensionContext) {
                 });
         }
     });
+
+    context.subscriptions.push(bazelCommand, changeEditorListener, changeTextListener);
+
+    await updateActiveEditor(vscode.window.activeTextEditor);
 }
 
 // TODO: cleanup listeners

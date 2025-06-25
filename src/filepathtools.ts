@@ -15,50 +15,57 @@ export function resolveModuleToUri(
     hostFileUri: vscode.Uri,
     moduleSpecifier: string
 ) {
-    const configPath = ts.findConfigFile(hostFileUri.fsPath, ts.sys.fileExists, 'tsconfig.json'); // COuld we use this to get the bazel build?
+    const configPath = ts.findConfigFile(hostFileUri.fsPath, ts.sys.fileExists, 'tsconfig.json'); // This can also be used for bazel build
 
     if (!configPath) {
         return undefined; 
     }
 
     const configContent = ts.sys.readFile(configPath);
-    if (configContent) {
-        const { config, error } = ts.parseConfigFileTextToJson(configPath, configContent);
-        if (error) {
-            console.error(`Error parsing tsconfig file ${configPath}:`);
-            return; 
-        }
-            
-        const parsedCommandLine = ts.parseJsonConfigFileContent(
-                config,
-                ts.sys,
-                path.dirname(configPath)
-            );
-        console.log(parsedCommandLine); 
-
-        const moduleResolutionHost: ts.ModuleResolutionHost = {
-            fileExists: ts.sys.fileExists,
-            readFile: ts.sys.readFile,
-            directoryExists: ts.sys.directoryExists,
-            getCurrentDirectory: () => path.dirname(configPath), // Crucial for baseUrl resolution
-            getDirectories: ts.sys.getDirectories,
-            realpath: ts.sys.realpath,
-            useCaseSensitiveFileNames: ts.sys.useCaseSensitiveFileNames,
-        };
-
-        const resolved = ts.resolveModuleName(
-            moduleSpecifier,
-            hostFileUri.fragment,
-            parsedCommandLine.options,
-            moduleResolutionHost
+    if (!configContent) {
+        return undefined;
+    }
+    const { config, error } = ts.parseConfigFileTextToJson(configPath, configContent);
+    if (error) {
+        console.error(`Error parsing tsconfig file ${configPath}:`);
+        return; 
+    }
+        
+    const parsedCommandLine = ts.parseJsonConfigFileContent(
+            config,
+            ts.sys,
+            path.dirname(configPath)
         );
 
-        if (resolved.resolvedModule === undefined) {
-            throw Error(`Failed to resolve uri: ${moduleSpecifier}`); 
-        }
+    const moduleResolutionHost: ts.ModuleResolutionHost = {
+        fileExists: ts.sys.fileExists,
+        readFile: ts.sys.readFile,
+        directoryExists: ts.sys.directoryExists,
+        getCurrentDirectory: () => {
+            if (moduleSpecifier.startsWith("@")) {
+                return path.dirname(configPath);
+            }
+            else {
+                return hostFileUri.fsPath;
+            }
+        },
+        getDirectories: ts.sys.getDirectories,
+        realpath: ts.sys.realpath,
+        useCaseSensitiveFileNames: ts.sys.useCaseSensitiveFileNames,
+    };
 
-        return vscode.Uri.file(resolved.resolvedModule.resolvedFileName);
+    const resolved = ts.resolveModuleName(
+        moduleSpecifier,
+        hostFileUri.fragment,
+        parsedCommandLine.options,
+        moduleResolutionHost
+    );
+
+    if (resolved.resolvedModule === undefined) {
+        throw Error(`Failed to resolve uri: ${moduleSpecifier}`); 
     }
+
+    return vscode.Uri.file(resolved.resolvedModule.resolvedFileName);
 }
 
 export function uriToBuild(uri: vscode.Uri): [string, vscode.Uri] | undefined {

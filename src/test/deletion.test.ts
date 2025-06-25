@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os'; 
-import { ExtensionState, getState, setTerminal } from '../extension';
+import { ExtensionState, getExtensionState, setTerminal } from '../extension';
 import { MockData, MockTerminal } from './__mock__/terminal';
 
 function buildContents(packagesRoot: string, pkg: string, deps: string[]) {
@@ -22,11 +22,10 @@ ts_library(
 async function awaitState(state: ExtensionState) {
     const waiter = new Promise<void>(resolve => {
         let interval = setInterval(() => {
-                if (getState() === state) {
+                if (getExtensionState() === state) {
                     clearInterval(interval);
                     resolve();
                 }
-                console.log(`Waiting for ${ExtensionState[state]} with ${ExtensionState[getState()]}`);
             }, 500);
     });
     await waiter; 
@@ -145,13 +144,12 @@ export function test2b() {
     });
 
     teardown(async () => {
-    
+        testTerminal.sendText("");
+        setTerminal(testTerminal); 
     });
 
     suiteTeardown( async () => {
-        // Close the workspace
-        // If you opened a workspace folder, you might need to close it explicitly
-        // or rely on `vscode-test` to clean up the launched instance.
+        await vscode.commands.executeCommand('workbench.action.closeAllEditors');
 
         // Clean up the temporary directory
         if (fs.existsSync(testWorkspaceFolder)) {
@@ -163,7 +161,7 @@ export function test2b() {
                 console.error(error);
             }
         }
-        await vscode.commands.executeCommand('workbench.action.closeAllEditors');
+        
     });
 
     // One import on each 
@@ -186,7 +184,6 @@ export function test2b() {
 
         let removeOne: MockData = JSON.parse(testTerminal.name); 
 
-        assert(removeOne.data);
         assert(removeOne.data.includes("//ts/src/package2"));
         assert(removeOne.data.includes("//ts/src/package1"));
         assert(!removeOne.data.includes("//ts/src/package3"));
@@ -202,7 +199,6 @@ export function test2b() {
 
         let removeRemaining: MockData = JSON.parse(testTerminal.name);
         
-        assert(removeRemaining.data);
         assert(!removeRemaining.data.includes("//ts/src/package2"));
         assert(removeRemaining.data.includes("//ts/src/package1"));
         assert(removeRemaining.data.includes("//ts/src/package3"));

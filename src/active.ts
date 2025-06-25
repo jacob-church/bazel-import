@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { Cache } from './basecache';
-import {getActiveFile, getEnabledStatus, getStatusBarItem, setActiveFile, handleActiveFileDirectoryChange, TS_LANGUAGE_ID, validatePackageSize, ExtensionState, setState} from './extension';
+import {getActiveFile, getEnabledStatus, getStatusBarItem, setActiveFile, handleActiveFileDirectoryChange, TS_LANGUAGE_ID, validatePackageSize, ExtensionState, setExtensionState} from './extension';
 import {uriToContainingUri} from './uritools';
 import {otherTargetsUris} from './targettools';
 import path = require('path');
@@ -49,7 +49,7 @@ export async function updateActiveEditor(editor: vscode.TextEditor | undefined) 
     if (editor === undefined || !vscode.workspace.getConfiguration('bazel-import').enableDeletion) {
         return; 
     }
-    setState(ExtensionState.inactive); 
+    setExtensionState(ExtensionState.inactive); 
 
     const statusItem = getStatusBarItem();
     statusItem.show(); 
@@ -68,7 +68,7 @@ export async function updateActiveEditor(editor: vscode.TextEditor | undefined) 
     const newDir = handleActiveFileDirectoryChange(document);
     if (newDir === undefined) {
         setDeletionStatus(statusItem, fileName);
-        setState(ExtensionState.active);
+        setExtensionState(ExtensionState.active);
         return; 
     }
 
@@ -99,7 +99,7 @@ export async function updateActiveEditor(editor: vscode.TextEditor | undefined) 
         validatePackageSize();
     }
 
-    const activeFile = getActiveFile(); // Active file needs to be locked
+    const activeFile = getActiveFile(); // TODO: Extension is probably fast enough, but active file may need to be locked
     if (activeFile === undefined) {
         throw Error("Unexpected null active file"); 
     }
@@ -111,7 +111,7 @@ export async function updateActiveEditor(editor: vscode.TextEditor | undefined) 
     });
 
     setDeletionStatus(statusItem, fileName);
-    setState(ExtensionState.active);
+    setExtensionState(ExtensionState.active);
 }
 
 function setDeletionStatus(statusItem: vscode.StatusBarItem, fileName: string) {
