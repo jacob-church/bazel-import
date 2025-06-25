@@ -1,7 +1,7 @@
 import * as vscode from 'vscode'; 
 import * as ts from 'typescript';
 import path = require('path');
-import { filePathToTargetPath } from './targettools';
+import { filePathToTargetPath } from '../targettools';
 
 const tsExtension = vscode.extensions.getExtension('vscode.typescript-language-features');
 let active = true; 

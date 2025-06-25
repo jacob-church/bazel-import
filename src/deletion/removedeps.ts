@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import { uriToBuildTarget } from './targettools';
-import { uriToContainingUri } from './uritools';
-import { urisFromTextChanges } from './importparse';
+import { uriToBuildTarget } from '../targettools';
+import { uriToContainingUri } from '../uritools';
+import { urisFromTextChanges } from '../importparse';
 import { uriToBuild, resolveModuleToUri } from './filepathtools';
 
 

@@ -3,9 +3,9 @@ import {uriToContainingUri} from './uritools';
 import {uriToBuildTarget} from './targettools';
 import {positionsFromTextChanges, urisFromTextChanges} from './importparse';
 import {getImportedTargets} from './bazeltools';
-import { getBuildTargetFromFP, getBuildTargetsFromFile, getDeletionTargets } from './removedeps';
+import { getBuildTargetFromFP, getBuildTargetsFromFile, getDeletionTargets } from './deletion/removedeps';
 import { updateMaxPackageSize } from './userinteract';
-import { updateActiveEditor } from './active';
+import { updateActiveEditor } from './deletion/active';
 import path = require('path');
 
 const OPEN_BUTTON = 'Open';

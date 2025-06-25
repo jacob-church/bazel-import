@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
 import { Cache } from './basecache';
-import {getActiveFile, getEnabledStatus, getStatusBarItem, setActiveFile, handleActiveFileDirectoryChange, TS_LANGUAGE_ID, validatePackageSize, ExtensionState, setExtensionState} from './extension';
-import {uriToContainingUri} from './uritools';
-import {otherTargetsUris} from './targettools';
+import {getActiveFile, getEnabledStatus, getStatusBarItem, setActiveFile, handleActiveFileDirectoryChange, TS_LANGUAGE_ID, validatePackageSize, ExtensionState, setExtensionState} from '../extension';
+import {uriToContainingUri} from '../uritools';
+import {otherTargetsUris} from '../targettools';
 import path = require('path');
 
 const CACHE_SIZE: number = Number(vscode.workspace.getConfiguration('bazel-import').maxCacheSize);
