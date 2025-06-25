@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { Cache } from './basecache';
-import {getActiveFile, getEnabledStatus, getStatusBarItem, setActiveFile, handleActiveFileDirectoryChange, TS_LANGUAGE_ID, validatePackageSize} from './extension';
+import {getActiveFile, getEnabledStatus, getStatusBarItem, setActiveFile, handleActiveFileDirectoryChange, TS_LANGUAGE_ID, validatePackageSize, ExtensionState, setState} from './extension';
 import {uriToContainingUri} from './uritools';
 import {otherTargetsUris} from './targettools';
 import path = require('path');
@@ -49,6 +49,7 @@ export async function updateActiveEditor(editor: vscode.TextEditor | undefined) 
     if (editor === undefined || !vscode.workspace.getConfiguration('bazel-import').enableDeletion) {
         return; 
     }
+    setState(ExtensionState.inactive); 
 
     const statusItem = getStatusBarItem();
     statusItem.show(); 
@@ -67,6 +68,7 @@ export async function updateActiveEditor(editor: vscode.TextEditor | undefined) 
     const newDir = handleActiveFileDirectoryChange(document);
     if (newDir === undefined) {
         setDeletionStatus(statusItem, fileName);
+        setState(ExtensionState.active);
         return; 
     }
 
@@ -108,7 +110,8 @@ export async function updateActiveEditor(editor: vscode.TextEditor | undefined) 
         buildUri: activeFile.buildUri,
     });
 
-    setDeletionStatus(statusItem, fileName); // TODO: factor out duplicate
+    setDeletionStatus(statusItem, fileName);
+    setState(ExtensionState.active);
 }
 
 function setDeletionStatus(statusItem: vscode.StatusBarItem, fileName: string) {
