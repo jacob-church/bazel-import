@@ -1,13 +1,16 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
 import * as path from 'path';
-import * as fs from 'fs';
-import * as os from 'os'; 
 import { ExtensionState, getExtensionState, setTerminal } from '../extension';
 import { MockData, MockTerminal } from './__mock__/terminal';
-import { setupWorkspace } from './workspacesetup';
+import { cleanupGraceful, cleanupWorkspace, setupWorkspace } from './workspacesetup';
+import *as _fs_ from 'fs';
 
+let testWorkspaceFolder: string;
 
+process.on('SIGINT', () => cleanupGraceful('SIGINT', testWorkspaceFolder));
+process.on('SIGTERM', () => cleanupGraceful('SIGTERM', testWorkspaceFolder));
+process.on('exit', (code) => cleanupGraceful(code, testWorkspaceFolder));
 
 async function awaitState(state: ExtensionState) {
     const waiter = new Promise<void>(resolve => {
@@ -21,9 +24,10 @@ async function awaitState(state: ExtensionState) {
     await waiter; 
 }
 
+
+
 suite("Deletion", () => {
     // Create a temporary workspace for tests
-    let testWorkspaceFolder: string;
     let package1: string;
     let package2: string;
 
@@ -47,17 +51,7 @@ suite("Deletion", () => {
     suiteTeardown( async () => {
         await vscode.commands.executeCommand('workbench.action.closeAllEditors');
 
-        // Clean up the temporary directory
-        if (fs.existsSync(testWorkspaceFolder)) {
-            try {
-                fs.rmSync(testWorkspaceFolder, { recursive: true, force: true });
-                console.log(`Cleaned up test workspace: ${testWorkspaceFolder}`);
-            } catch (error) {
-                console.error(`Failed to delete ${testWorkspaceFolder}`);
-                console.error(error);
-            }
-        }
-        
+        cleanupWorkspace(testWorkspaceFolder);
     });
 
     // One import on each 

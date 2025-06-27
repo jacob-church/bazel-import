@@ -109,6 +109,31 @@ export function test2b() {
     return {testWorkspaceFolder, package1, package2, package3, package4};
 }
 
+export function cleanupWorkspace(testWorkspaceFolder: string) {
+    // Clean up the temporary directory
+    if (fs.existsSync(testWorkspaceFolder)) {
+        try {
+            fs.rmSync(testWorkspaceFolder, { recursive: true, force: true });
+            console.log(`Cleaned up test workspace: ${testWorkspaceFolder}`);
+        } catch (error) {
+            console.error(`Failed to delete ${testWorkspaceFolder}`);
+            console.error(error);
+        }
+    }   
+}
+
+let isCleanup = false; 
+
+export function cleanupGraceful(signal: string | number, testWorkspaceFolder: string) {
+    if (isCleanup) {
+        process.exit();
+    }
+    isCleanup = true; 
+    cleanupWorkspace(testWorkspaceFolder);
+    const exitCode = typeof signal === "number" ? signal : (signal === 'SIGINT' ? 130 : 143);
+    process.exit(exitCode);
+}
+
 function buildContents(packagesRoot: string, pkg: string, deps: string[]) {
     return `load("@rules_ts//ts:ts.bzl", "ts_library")
 
