@@ -3,6 +3,7 @@ import { uriToBuildTarget } from '../targettools';
 import { uriToContainingUri } from '../uritools';
 import { urisFromTextChanges } from '../importparse';
 import { uriToBuild, resolveModuleToUri } from './filepathtools';
+import * as path from 'path';
 
 
 const MIN_LENGTH = 7;
@@ -42,24 +43,15 @@ export const getDeletionTargets = (oldText: string, event: vscode.TextDocumentCh
     return importDeletions; 
 };
 
-export const getBuildTargetFromFP = (filePath: string, currentFile: vscode.Uri): [string, vscode.Uri] => {
+export const getBuildTargetFromFP = (importPath: string, currentFile: vscode.Uri): [string, vscode.Uri] => {
     let fileUri: vscode.Uri | undefined;
     const currentDir = uriToContainingUri(currentFile); 
-    if (filePath.startsWith('./')) {
-        filePath = currentDir.fsPath + filePath.slice(1) + '.ts'; 
-        fileUri = vscode.Uri.file(filePath); 
-    }
-    else if (filePath.startsWith('../')) {
-        let folderPath = currentDir.fsPath;
-        while (filePath.startsWith('../')) {
-            folderPath = folderPath.slice(0, folderPath.lastIndexOf('/'));
-            filePath = filePath.slice(3);  
-        } 
-        filePath = folderPath + '/' + filePath + '.ts'; 
-        fileUri = vscode.Uri.file(filePath); 
+    if (importPath.startsWith('.')) {
+        importPath = path.resolve(path.dirname(currentFile.fsPath), importPath) + ".ts";
+        fileUri = vscode.Uri.file(importPath); 
     }
     else {
-        fileUri = resolveModuleToUri(currentFile, filePath);
+        fileUri = resolveModuleToUri(currentFile, importPath);
     }
 
     if (!fileUri) {

@@ -21,18 +21,17 @@ function urisFromStrings(strings: string[]): vscode.Uri[] {
     return strings.map(strUri => vscode.Uri.parse(strUri)); 
 }
 
-async function loadSourcePackages(document: vscode.TextDocument) {
+async function loadPackageSources(document: vscode.TextDocument) {
     const currentTargetPair = await otherTargetsUris(uriToContainingUri(document.uri));
-    const packageSources = currentTargetPair?.[0] ?? []; 
-    const currentTarget = currentTargetPair?.[1];
-    const currBuildURI = currentTargetPair?.[2];
-    
-    if (!currentTarget || !packageSources || !currBuildURI) {
+    if (currentTargetPair === undefined) {
         vscode.window.showErrorMessage(
             `${path.basename(document.uri.fsPath)} failed to open`
         );
         return;
     }
+    const packageSources = currentTargetPair[0]; 
+    const currentTarget = currentTargetPair[1];
+    const currBuildURI = currentTargetPair[2];
 
     setActiveFile({
         packageSources: packageSources,
@@ -93,7 +92,7 @@ export async function updateActiveEditor(editor: vscode.TextEditor | undefined) 
         }
     }
     if (!found) {
-        await loadSourcePackages(document); 
+        await loadPackageSources(document); 
     }
     else {
         validatePackageSize();
