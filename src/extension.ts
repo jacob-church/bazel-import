@@ -7,10 +7,13 @@ import { getBuildTargetFromFP, getBuildTargetsFromFile, getDeletionTargets } fro
 import { updateMaxPackageSize } from './userinteract';
 import { updateActiveEditor } from './deletion/active';
 import path = require('path');
+import { statusBarOptions } from './analysis/deps';
 
 const OPEN_BUTTON = 'Open';
 const CHANGE_PACKAGE_LIMIT_BUTTON = 'Change max package size';
 const DISMISS_BUTTON = "Don't show this again";
+const STATUS_BAR_COMMAND_ID = "bazel-import.showStatusBarOptions";
+
 export const TS_LANGUAGE_ID = 'typescript';
 
 let terminal: vscode.Terminal | undefined = undefined;
@@ -330,7 +333,13 @@ export async function activate(context: vscode.ExtensionContext) {
         }
     });
 
-    context.subscriptions.push(bazelCommand, changeEditorListener, changeTextListener);
+    activeStatusBarItem.text = '$(wand)';
+    activeStatusBarItem.tooltip = 'Run dependency fixup on a bazel package';
+    activeStatusBarItem.command = STATUS_BAR_COMMAND_ID;
+    const statusBarCommand = vscode.commands.registerCommand(STATUS_BAR_COMMAND_ID, statusBarOptions);
+    activeStatusBarItem.show();
+
+    context.subscriptions.push(bazelCommand, changeEditorListener, changeTextListener, activeStatusBarItem, statusBarCommand);
 
     await updateActiveEditor(vscode.window.activeTextEditor);
 }
