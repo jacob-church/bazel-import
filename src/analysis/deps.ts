@@ -1,6 +1,12 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { uriToBuild } from '../deletion/filepathtools';
-import { getTerminal } from '../extension';
+import { BUILD_FILE, getTerminal } from '../extension';
+import { getBuildTargetsFromFile } from '../deletion/removedeps';
+import { otherTargetsUris } from '../targettools';
+import { uriToContainingUri } from '../uritools';
+import { getBazelDeps } from './bazelutil';
+import { showDismissableFileMessage, showDismissableMessage } from '../userinteraction';
 
 /** 
  * Idea: add status bar item, shortcut, or icon => onclick select target file 🗹
@@ -34,7 +40,7 @@ export const statusBarOptions = async () => {
     });
 
     if (!selection) {
-        // do something UI/UX
+        // TODO: do something UI/UX
         return;
     }
 
@@ -90,8 +96,7 @@ const runDeps = async (file: vscode.Uri | undefined) => {
         try {
             let modificationsMade = false; 
             const cancellationDisposable = token.onCancellationRequested(() => {
-                console.log("dependency fix halted");
-                // TODO: alert user that things may be borked
+                showDismissableMessage("Dependency fix halted");
                 if (modificationsMade) {
                     vscode.window.showWarningMessage("Files modified. Check package for incorrect dependencies"); // TODO point this to build file
                 }
@@ -128,7 +133,7 @@ const runDeps = async (file: vscode.Uri | undefined) => {
                 return;
             }
 
-            progress.report({message: "analyzing source-file dependencies"});
+            progress.report({message: `analyzing dependencies for ${packageUris.length} source file(s)`});
             const dependencyTargets = new Set<string>();
             await Promise.all(packageUris.map(async sourceUri => {
                 const targets = await getBuildTargetsFromFile(sourceUri); 
@@ -158,7 +163,7 @@ const runDeps = async (file: vscode.Uri | undefined) => {
             console.log("Add", addDeps, "Remove", removeDeps); 
             if (addDeps.length === 0 && removeDeps.length === 0) {
                 cancellationDisposable.dispose();
-                vscode.window.showInformationMessage("Dependencies already up to date");
+                showDismissableMessage("Dependencies already up to date");
                 return;
             }
 
@@ -181,46 +186,16 @@ const runDeps = async (file: vscode.Uri | undefined) => {
                 modificationsMade = true;
                 terminal.sendText(buildozerRemove);
             }
-            vscode.window.showInformationMessage(`Removed ${removeDeps.length} and added ${addDeps.length} deps to build file`);
+            showDismissableFileMessage(
+                `Removed ${removeDeps.length} and added ${addDeps.length} deps to ${BUILD_FILE}`,
+                buildUri
+            );
+            
             cancellationDisposable.dispose();
 
         } catch (error) {
-            // DO something
+            vscode.window.showErrorMessage("Failed to analyze dependencies");
+            console.error(error);
         }
     });
 };
-
-// Maybe use this for rundeps => vscode.window.withProgress
-
-import { exec } from 'child_process';
-import {uriToContainingUri} from '../uritools';
-import {otherTargetsUris} from '../targettools';
-import path = require('path');
-import { getBuildTargetsFromFile } from '../deletion/removedeps';
-
-// Move to utility file
-async function getBazelDeps(target: string, cwd: string,  ...excludedTargets: string[]): Promise<string> { // Add to config? 
-    let command = `bazel query "labels(deps, ${target})"`;
-
-    if (excludedTargets.length > 0) {
-        const excludePart = excludedTargets.map(path => `except ${path}/...`).join(' ');
-        command = `${command} ${excludePart}`;
-    }
-
-    console.log(command);
-    return new Promise((resolve, reject) => {
-        exec(command, {cwd: cwd}, (error, stdout, stderr) => {
-            if (error) {
-                console.error(`exec error: ${error}`);
-                if (stderr) {
-                    console.error(`stderr: ${stderr}`)
-                };
-                return reject(new Error(`Command failed with exit code ${error.code}: ${stderr || error.message}`));
-            }
-            if (stderr) {
-                console.warn(`stderr: ${stderr}`);
-            }
-            resolve(stdout);
-        });
-    });
-}

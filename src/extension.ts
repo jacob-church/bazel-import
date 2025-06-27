@@ -4,16 +4,16 @@ import {uriToBuildTarget} from './targettools';
 import {positionsFromTextChanges, urisFromTextChanges} from './importparse';
 import {getImportedTargets} from './bazeltools';
 import { getBuildTargetFromFP, getBuildTargetsFromFile, getDeletionTargets } from './deletion/removedeps';
-import { updateMaxPackageSize } from './userinteract';
+import { showDismissableFileMessage, showDismissableMessage, updateMaxPackageSize } from './userinteraction';
 import { updateActiveEditor } from './deletion/active';
 import path = require('path');
 import { statusBarOptions } from './analysis/deps';
 
-const OPEN_BUTTON = 'Open';
+
 const CHANGE_PACKAGE_LIMIT_BUTTON = 'Change max package size';
-const DISMISS_BUTTON = "Don't show this again";
 const STATUS_BAR_COMMAND_ID = "bazel-import.showStatusBarOptions";
 
+export const BUILD_FILE = vscode.workspace.getConfiguration('bazel-import').buildFile;
 export const TS_LANGUAGE_ID = 'typescript';
 
 let terminal: vscode.Terminal | undefined = undefined;
@@ -146,7 +146,7 @@ export function validatePackageSize() {
     if (!vscode.workspace.getConfiguration('bazel-import').notifyChange) {
         return; 
     }
-    vscode.window.showInformationMessage(
+    showDismissableMessage(
         `${path.basename(vscode.window.activeTextEditor?.document.uri.fsPath ?? "undefined")} opened with deletion ${deletion}`
     );
 }
@@ -182,10 +182,7 @@ async function deleteDeps(changeEvent: vscode.TextDocumentChangeEvent) {
     }
 
     if (deletedDeps.size === 0) {
-        if (vscode.workspace.getConfiguration('bazel-import').notifyChange) {
-            console.log("Deletion was in package");
-            vscode.window.showInformationMessage("Bazel deps not removed (deleted import is in package)");
-        }
+        showDismissableMessage("Bazel deps not removed (deleted import is in package)");
         activeStatusBarItem.text = '$(wand)';
         activeStatusBarItem.tooltip = beforeTip;
         setExtensionState(ExtensionState.ready);
@@ -209,9 +206,7 @@ async function deleteDeps(changeEvent: vscode.TextDocumentChangeEvent) {
 
     // No build files left - Return
     if (deps.trim().length === 0) {
-        if (vscode.workspace.getConfiguration('bazel-import').notifyChange) {
-            vscode.window.showInformationMessage("Bazel deps not removed (dependency still exists)");
-        }
+        showDismissableMessage("Bazel deps not removed (dependency still exists)");
         activeStatusBarItem.text = '$(wand)';
         activeStatusBarItem.tooltip = beforeTip;
         setExtensionState(ExtensionState.ready);
@@ -228,19 +223,8 @@ async function deleteDeps(changeEvent: vscode.TextDocumentChangeEvent) {
     const buildozer = `buildozer "remove deps ${deps}" "${activeFile.target}"`;
     console.log(`Executing: ${buildozer}`);
     terminal.sendText(buildozer);
-    if (vscode.workspace.getConfiguration('bazel-import').notifyChange) {
-        const buildFile = vscode.workspace.getConfiguration('bazel-import').buildFile;
-        vscode.window
-            .showInformationMessage(`Bazel deps removed from ${buildFile}`, OPEN_BUTTON, DISMISS_BUTTON)
-            .then((button) => {
-                if (button === OPEN_BUTTON && activeFile?.buildUri) {
-                    vscode.window.showTextDocument(activeFile.buildUri);
-                }
-                if (button === DISMISS_BUTTON) {
-                    vscode.workspace.getConfiguration('bazel-import').update('notifyChange', false);
-                }
-            });
-    }
+    showDismissableFileMessage(`Bazel deps removed from ${BUILD_FILE}`, activeFile?.buildUri);
+
     // Step 5: Update document state
     activeStatusBarItem.text = '$(wand)';
     activeStatusBarItem.tooltip = beforeTip;
@@ -318,19 +302,7 @@ export async function activate(context: vscode.ExtensionContext) {
         const buildozer = `buildozer "add deps ${deps}" "${currentTarget}"`;
         console.log(`Executing: ${buildozer}`);
         terminal.sendText(buildozer);
-        if (vscode.workspace.getConfiguration('bazel-import').notifyChange) {
-            const buildFile = vscode.workspace.getConfiguration('bazel-import').buildFile;
-            vscode.window
-                .showInformationMessage(`Bazel deps added to ${buildFile}`, OPEN_BUTTON, DISMISS_BUTTON)
-                .then((button) => {
-                    if (button === OPEN_BUTTON && buildFileUri) {
-                        vscode.window.showTextDocument(buildFileUri);
-                    }
-                    if (button === DISMISS_BUTTON) {
-                        vscode.workspace.getConfiguration('bazel-import').update('notifyChange', false);
-                    }
-                });
-        }
+        showDismissableFileMessage(`Bazel deps added to ${BUILD_FILE}`, buildFileUri);
     });
 
     activeStatusBarItem.text = '$(wand)';

@@ -1,5 +1,8 @@
 import * as vscode from 'vscode'; 
 
+const DISMISS_BUTTON = "Don't show this again";
+const OPEN_BUTTON = 'Open';
+
 const validateNumber = (text: string) => {
     if (!text || text.trim().length === 0) {
         return 'Input cannot be empty.';
@@ -36,4 +39,27 @@ export const updateMaxPackageSize = async () => {
     else {
         vscode.window.showInformationMessage(`Operation aborted`);
     }
+};
+
+export const showDismissableFileMessage = (message: string, fileUri?: vscode.Uri) => {
+    if (!vscode.workspace.getConfiguration('bazel-import').notifyChange) {
+        return;
+    }
+    vscode.window
+        .showInformationMessage(message, OPEN_BUTTON, DISMISS_BUTTON)
+        .then((button) => {
+            if (button === OPEN_BUTTON && fileUri) {
+                vscode.window.showTextDocument(fileUri);
+            }
+            if (button === DISMISS_BUTTON) {
+                vscode.workspace.getConfiguration('bazel-import').update('notifyChange', false);
+            }
+        });
+};
+
+export const showDismissableMessage = (message: string) => {
+    if (!vscode.workspace.getConfiguration('bazel-import').notifyChange) {
+        return; 
+    }
+    vscode.window.showInformationMessage(message);
 };
