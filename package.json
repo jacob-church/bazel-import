@@ -78,6 +78,17 @@
 						"type": "boolean",
 						"default": false,
 						"description": "Remove bazel dependencies"
+					},
+					"bazel-import.excludeDependencies": {
+						"type": [
+							"array",
+							"string",
+							"null"
+						],
+						"default": [
+							"//cake/build"
+						],
+						"description": "Add hidden dependencies here to avoid checking them (buildozer won't remove them, so this primarily influences the UI)"
 					}
 				}
 			}

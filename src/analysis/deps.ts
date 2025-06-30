@@ -116,7 +116,11 @@ export const runDeps = async (file: vscode.Uri | undefined) => {
             console.debug("Target", buildTarget, "Uri", buildUri); 
             
             // Get current bazel deps
-            const depsString: string = await getBazelDeps(buildTarget, path.dirname(file.fsPath));
+            const depsString: string = await getBazelDeps(
+                buildTarget, 
+                path.dirname(file.fsPath), 
+                vscode.workspace.getConfiguration('bazel-import').excludeDependencies
+            );
             console.debug("Deps string", depsString);
             const depsArray = depsString.split('\n').filter((dep) => dep.indexOf(':') >= 0).map(dep => {
                 const pkgIdx = dep.indexOf(':');
