@@ -10,6 +10,7 @@ export interface WorkspaceInfo {
     package2: string,
     package3: string,
     package4: string,
+    package5: string,
 }
 
 export async function setupWorkspace(bazel: boolean = false): Promise<WorkspaceInfo> {
@@ -37,7 +38,7 @@ export async function setupWorkspace(bazel: boolean = false): Promise<WorkspaceI
     // Package 1
     const package1 = path.join(packagesRoot, "package1");
     fs.mkdirSync(package1);
-    const build1 = buildContents(packagesRoot, "package1", ["package2", "package3", "package3/package4"]);
+    const build1 = buildContents("package1", ["package2", "package3", "package3/package4"]);
     fs.writeFileSync(path.join(package1, "BUILD.bazel"), build1);
     const test1 = `import { test2 } from '@test/package2/test2';
 import { test3a } from '@test/package3/test3a';
@@ -56,7 +57,7 @@ export function test1() {
     const sub2 = path.join(package2, "sub2");
     const subsub2 = path.join(sub2, "subsub2"); 
     fs.mkdirSync(subsub2, {recursive: true});
-    const build2 = buildContents(packagesRoot, "package2", ["package3", "package3/package4"]);
+    const build2 = buildContents("package2", ["package3", "package3/package4"]);
     fs.writeFileSync(path.join(package2, "BUILD.bazel"), build2);
     const test2 = "export function test2() { console.log('test2'); }";
     fs.writeFileSync(path.join(package2, "test2.ts"), test2);
@@ -85,7 +86,7 @@ export function test2b() {
     // Package 3
     const package3 = path.join(packagesRoot, "package3");
     fs.mkdirSync(package3);
-    const build3 = buildContents(packagesRoot, "package3", []); // may need to fix empty deps
+    const build3 = buildContents("package3", []); // may need to fix empty deps
     const test3a = "export function test3a() { console.log('test3a'); }";
     const test3b = "export function test3b() { console.log('test3b'); }";
     fs.writeFileSync(path.join(package3, "BUILD.bazel"), build3);
@@ -95,12 +96,20 @@ export function test2b() {
     // Package 4
     const package4 = path.join(package3, "package4");
     fs.mkdirSync(package4);
-    const build4 = buildContents(packagesRoot, "package4", []);
+    const build4 = buildContents("package4", []);
     const test4 = "export function test4() { console.log('test4'); }";
     fs.writeFileSync(path.join(package4, "BUILD.bazel"), build4);
     fs.writeFileSync(path.join(package4, "test4.ts"), test4);   
 
-    return {testWorkspaceFolder, package1, package2, package3, package4};
+    // Package 5
+    const package5 = path.join(packagesRoot, "package5");
+    fs.mkdirSync(package5);
+    const build5 = buildContents("package5", []);
+    const test5 = "export function test5() { console.log('test5'); }";
+    fs.writeFileSync(path.join(package5, "BUILD.bazel"), build5);
+    fs.writeFileSync(path.join(package5, "test5.ts"), test5);   
+
+    return {testWorkspaceFolder, package1, package2, package3, package4, package5};
 }
 
 export function cleanupWorkspace(testWorkspaceFolder: string) {
@@ -128,7 +137,7 @@ export function cleanupGraceful(signal: string | number, testWorkspaceFolder: st
     process.exit(exitCode);
 }
 
-function buildContents(packagesRoot: string, pkg: string, deps: string[]) {
+function buildContents(pkg: string, deps: string[]) {
     return `load("//:test.bzl", "ts_library")
 
 ts_library(

@@ -63,7 +63,6 @@ export const statusBarOptions = async (file?: vscode.Uri) => {
 };
 
 const getFile = async () => {
-    console.log("Get file");
     const startUri = vscode.window.activeTextEditor ? vscode.window.activeTextEditor.document.uri : (
         vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0
             ? vscode.workspace.workspaceFolders[0].uri
@@ -86,9 +85,9 @@ const getFile = async () => {
 };
 
 export const runDeps = async (file: vscode.Uri | undefined) => {
-    console.log("Running deps on", file);
+    console.debug("Running deps on", file);
     if (file === undefined) {
-        console.log("File not defined");
+        console.error("File not defined");
         // Probably alert user
         return; 
     }
@@ -114,17 +113,17 @@ export const runDeps = async (file: vscode.Uri | undefined) => {
                 cancellationDisposable.dispose();
                 return;
             }
-            console.log("Target", buildTarget, "Uri", buildUri); 
+            console.debug("Target", buildTarget, "Uri", buildUri); 
             
             // Get current bazel deps
             const depsString: string = await getBazelDeps(buildTarget, path.dirname(file.fsPath));
-            console.log("Deps string", depsString);
+            console.debug("Deps string", depsString);
             const depsArray = depsString.split('\n').filter((dep) => dep.indexOf(':') >= 0).map(dep => {
                 const pkgIdx = dep.indexOf(':');
                 return dep.slice(0, pkgIdx);
             });
             const currentDeps: Set<string> = new Set(depsArray); 
-            console.log("Build deps", currentDeps);
+            console.debug("Build deps", currentDeps);
             if (token.isCancellationRequested) {
                 cancellationDisposable.dispose();
                 return; 
@@ -151,7 +150,7 @@ export const runDeps = async (file: vscode.Uri | undefined) => {
             }));
             // Needed so it doesn't add self dependency
             dependencyTargets.delete(buildTarget);
-            console.log("Dependencies", dependencyTargets);
+            console.debug("Dependencies", dependencyTargets);
             if (dependencyTargets.size === 0 || token.isCancellationRequested) {
                 cancellationDisposable.dispose();
                 return;
@@ -165,7 +164,7 @@ export const runDeps = async (file: vscode.Uri | undefined) => {
                 }
             }
             const removeDeps: string[] = Array.from(currentDeps);
-            console.log("Add", addDeps, "Remove", removeDeps); 
+            console.debug("Add", addDeps, "Remove", removeDeps); 
             if (addDeps.length === 0 && removeDeps.length === 0) {
                 cancellationDisposable.dispose();
                 showDismissableMessage("Dependencies already up to date");
@@ -185,10 +184,9 @@ export const runDeps = async (file: vscode.Uri | undefined) => {
             const buildozerAdd = add.length > 0 ? `buildozer "add deps ${add}" "${buildTarget}"` : "";
             const buildozer = buildozerRemove.concat(buildozerAdd);
 
-            console.log(buildozerRemove, buildozerAdd, buildozer);
             if (buildozer) {
                 modificationsMade = true;
-                console.log(buildozer);
+                console.log(`Executing command: ${buildozer}`);
                 terminal.sendText(buildozer);
             }
             showDismissableFileMessage(
