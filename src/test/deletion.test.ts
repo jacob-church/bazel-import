@@ -74,11 +74,11 @@ suite("Deletion", () => {
 
         let removeOne: MockData = JSON.parse(testTerminal.name); 
 
-        assert(removeOne.data.includes("//ts/src/package2"));
-        assert(removeOne.data.includes("//ts/src/package1"));
-        assert(!removeOne.data.includes("//ts/src/package3"));
-        assert(!removeOne.data.includes("//ts/src/package3/package4"));
-        assert(removeOne.data.includes("remove deps")); 
+        assert(removeOne.data.remove.includes("//ts/src/package2"));
+        assert(removeOne.data.raw.includes("//ts/src/package1")); // Target is correct
+        assert(!removeOne.data.raw.includes("//ts/src/package3"));
+        assert(!removeOne.data.raw.includes("//ts/src/package3/package4"));
+        assert(removeOne.data.raw.includes("remove deps")); 
 
         await editor.edit(editBuilder => {
             const range = new vscode.Range(0, 0, 2, 0);
@@ -89,11 +89,11 @@ suite("Deletion", () => {
 
         let removeRemaining: MockData = JSON.parse(testTerminal.name);
         
-        assert(!removeRemaining.data.includes("//ts/src/package2"));
-        assert(removeRemaining.data.includes("//ts/src/package1"));
-        assert(removeRemaining.data.includes("//ts/src/package3"));
-        assert(removeRemaining.data.includes("//ts/src/package3/package4"));
-        assert(removeRemaining.data.includes("remove deps")); 
+        assert(!removeRemaining.data.raw.includes("//ts/src/package2"));
+        assert(removeRemaining.data.raw.includes("//ts/src/package1"));
+        assert(removeRemaining.data.remove.includes("//ts/src/package3"));
+        assert(removeRemaining.data.remove.includes("//ts/src/package3/package4"));
+        assert(removeRemaining.data.raw.includes("remove deps")); 
 
     });
 
@@ -114,6 +114,6 @@ suite("Deletion", () => {
 
         let removedDependences: MockData = JSON.parse(testTerminal.name);
 
-        assert.strictEqual(removedDependences.data, ""); 
+        assert.strictEqual(removedDependences.data.raw, ""); 
     });
 });

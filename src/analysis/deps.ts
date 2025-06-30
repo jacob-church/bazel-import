@@ -22,7 +22,12 @@ const CURRENT_FILE: string = '$(file) Current file';
 const SELECT_FILE: string = '$(file-directory) Select a file';
 
 
-export const statusBarOptions = async () => {
+export const statusBarOptions = async (file?: vscode.Uri) => {
+    if (file) {
+        runDeps(file);
+        return;
+    }
+
     const options: vscode.QuickPickItem[] = [
         {
             label: CURRENT_FILE
@@ -80,7 +85,7 @@ const getFile = async () => {
     return (fileUri && fileUri.length > 0) ? fileUri[0] : undefined; 
 };
 
-const runDeps = async (file: vscode.Uri | undefined) => {
+export const runDeps = async (file: vscode.Uri | undefined) => {
     console.log("Running deps on", file);
     if (file === undefined) {
         console.log("File not defined");
@@ -88,7 +93,7 @@ const runDeps = async (file: vscode.Uri | undefined) => {
         return; 
     }
 
-    vscode.window.withProgress({
+    return vscode.window.withProgress({
     location: vscode.ProgressLocation.Notification,
     title: "Bazel import",
     cancellable: true
@@ -112,7 +117,7 @@ const runDeps = async (file: vscode.Uri | undefined) => {
             console.log("Target", buildTarget, "Uri", buildUri); 
             
             // Get current bazel deps
-            const depsString: string = await getBazelDeps(buildTarget, path.dirname(file.fsPath), "//cake/build");
+            const depsString: string = await getBazelDeps(buildTarget, path.dirname(file.fsPath));
             console.log("Deps string", depsString);
             const depsArray = depsString.split('\n').filter((dep) => dep.indexOf(':') >= 0).map(dep => {
                 const pkgIdx = dep.indexOf(':');
@@ -176,18 +181,18 @@ const runDeps = async (file: vscode.Uri | undefined) => {
             }
             const add = addDeps.join(' ').trim(); 
             const remove = removeDeps.join(' ').trim();
-            const buildozerRemove = remove.length > 0 ? `buildozer "remove deps ${remove}" "${buildTarget}"; ` : undefined; 
-            const buildozerAdd = add.length > 0 ? `buildozer "add deps ${add}" "${buildTarget}"` : undefined;
-            if (buildozerAdd) {
+            const buildozerRemove = remove.length > 0 ? `buildozer "remove deps ${remove}" "${buildTarget}"; ` : ""; 
+            const buildozerAdd = add.length > 0 ? `buildozer "add deps ${add}" "${buildTarget}"` : "";
+            const buildozer = buildozerRemove.concat(buildozerAdd);
+
+            console.log(buildozerRemove, buildozerAdd, buildozer);
+            if (buildozer) {
                 modificationsMade = true;
-                terminal.sendText(buildozerAdd);
-            }
-            if (buildozerRemove) {
-                modificationsMade = true;
-                terminal.sendText(buildozerRemove);
+                console.log(buildozer);
+                terminal.sendText(buildozer);
             }
             showDismissableFileMessage(
-                `Removed ${removeDeps.length} and added ${addDeps.length} deps to ${BUILD_FILE}`,
+                `Removed ${removeDeps.length} and added ${addDeps.length} dep(s) to ${BUILD_FILE}`,
                 buildUri
             );
             

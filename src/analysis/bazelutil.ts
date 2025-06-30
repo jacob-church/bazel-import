@@ -8,8 +8,8 @@ export async function getBazelDeps(target: string, cwd: string, ...excludedTarge
         command = `${command} ${excludePart}`;
     }
 
-    console.log(command);
-    return executeCommand(command, cwd); 
+    console.log(`Executing ${command} in ${cwd}`);
+    return await executeCommand(command, cwd); 
 }
 
 export async function executeCommand(command: string, cwd: string): Promise<string> {

@@ -16,8 +16,22 @@ export class MockTerminal implements vscode.Terminal {
     }
 
     sendText(text: string, shouldExecute?: boolean): void {
+        const addStr = "buildozer \"add deps ";
+        const removeStr = "buildozer \"remove deps ";
+        const addIdx = text.indexOf(addStr);
+        const endAddIdx = text.indexOf("\"", addIdx + addStr.length);
+        const removeIdx = text.indexOf(removeStr);
+        const endRemoveIdx =  text.indexOf("\"", removeIdx + removeStr.length);
+
+        const adds = addIdx < 0 ? [] : text.substring(addIdx + addStr.length, endAddIdx).trim().split(' ');
+        const removes = removeIdx < 0 ? [] : text.substring(removeIdx + removeStr.length, endRemoveIdx).trim().split(' ');
+
         this.name = JSON.stringify({
-            data: text
+            data: {
+                raw: text,
+                add: adds,
+                remove: removes
+            }
         });
     }
 
@@ -35,5 +49,9 @@ export class MockTerminal implements vscode.Terminal {
 }
 
 export type MockData = {
-    data: string
+    data: {
+        raw: string,
+        add: string[],
+        remove: string[]
+    }
 };

@@ -8,5 +8,6 @@ module.exports = defineConfig({
         timeout: 0
     }, 
     extensionDevelopmentPath: path.resolve(__dirname, 'src', 'test', 'config'),
-    extensionTestsPath: path.resolve(__dirname, 'out', 'test', 'suite', 'index')
+    extensionTestsPath: path.resolve(__dirname, 'out', 'test', 'suite', 'index'),
+    preLaunchTask: 'npm: compile',
 });

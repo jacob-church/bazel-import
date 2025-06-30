@@ -12,33 +12,27 @@ export interface WorkspaceInfo {
     package4: string,
 }
 
-export async function setupWorkspace(): Promise<WorkspaceInfo> {
+export async function setupWorkspace(bazel: boolean = false): Promise<WorkspaceInfo> {
     // Create a temporary directory for each test run to ensure isolation
     const testWorkspaceFolder = fs.mkdtempSync(path.join(os.tmpdir(), tempDirPrefix));
     console.log(`Test workspace: ${testWorkspaceFolder}`);
-
-    // Build root tsconfig with replacements
-    const rootTsConfigContent = JSON.stringify({
-        compilerOptions: {
-            baseUrl: ".",
-            paths: {
-                // eslint-disable-next-line @typescript-eslint/naming-convention
-                "@test/*": ["./*"],
-            },
-            target: "ES2022",
-            module: "commonjs",
-            lib: ["ES2022", "dom"],
-            strict: true,
-            esModuleInterop: true,
-            rootDirs: ["."]
-        },
-        include: ["**/*.ts"]
-    }, null, 4);
-    
     const packagesRoot = path.join(testWorkspaceFolder, "ts/src");
     fs.mkdirSync(packagesRoot, {recursive: true});
-    fs.writeFileSync(path.join(packagesRoot, 'tsconfig.json'), rootTsConfigContent);
 
+    if (bazel) {
+        const buildModuleContent = getBuildModule();
+        fs.writeFileSync(path.join(testWorkspaceFolder, "MODULE.bazel"), buildModuleContent);
+
+        const ruleImplementation = getBuildImpl();
+        fs.writeFileSync(path.join(testWorkspaceFolder, 'test.bzl'), ruleImplementation);
+
+        const topBuildFile = "";
+        fs.writeFileSync(path.join(testWorkspaceFolder, 'BUILD.bazel'), topBuildFile);
+    }
+
+    const rootTsConfigContent = getRootTsConfig();
+    fs.writeFileSync(path.join(packagesRoot, 'tsconfig.json'), rootTsConfigContent);
+    
     // Build 4 bazel packages 
     // Package 1
     const package1 = path.join(packagesRoot, "package1");
@@ -135,7 +129,7 @@ export function cleanupGraceful(signal: string | number, testWorkspaceFolder: st
 }
 
 function buildContents(packagesRoot: string, pkg: string, deps: string[]) {
-    return `load("@rules_ts//ts:ts.bzl", "ts_library")
+    return `load("//:test.bzl", "ts_library")
 
 ts_library(
     name = "${pkg}",
@@ -145,4 +139,49 @@ ts_library(
     visibility = ["//visibility:public"],
 )
 `;
+}
+
+function getRootTsConfig() {
+    return JSON.stringify({
+        compilerOptions: {
+            baseUrl: ".",
+            paths: {
+                // eslint-disable-next-line @typescript-eslint/naming-convention
+                "@test/*": ["./*"],
+            },
+            target: "ES2022",
+            module: "commonjs",
+            lib: ["ES2022", "dom"],
+            strict: true,
+            esModuleInterop: true,
+            rootDirs: ["."]
+        },
+        include: ["**/*.ts"]
+    }, null, 4);
+}
+
+function getBuildModule() {
+    return `module(
+name = "bazel-import-test"
+)`;
+}
+
+function getBuildImpl() {
+    return `def _test_impl(ctx):
+    ctx.actions.write(
+        output=ctx.outputs.executable,
+        content="#!/bin/sh\\nexit 0",
+        is_executable=True
+    )
+    
+    return [
+        DefaultInfo(executable=ctx.outputs.executable)
+    ]
+
+ts_library = rule(
+    implementation = _test_impl,
+    attrs = {
+        "deps": attr.label_list(),
+    }
+)`;
 }

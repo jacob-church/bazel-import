@@ -6,17 +6,17 @@ import {getImportedTargets} from './bazeltools';
 import { getBuildTargetFromFP, getBuildTargetsFromFile, getDeletionTargets } from './deletion/removedeps';
 import { showDismissableFileMessage, showDismissableMessage, updateMaxPackageSize } from './userinteraction';
 import { updateActiveEditor } from './deletion/active';
-import path = require('path');
+import * as path from 'path';
 import { statusBarOptions } from './analysis/deps';
 
 
 const CHANGE_PACKAGE_LIMIT_BUTTON = 'Change max package size';
-const STATUS_BAR_COMMAND_ID = "bazel-import.showStatusBarOptions";
+export const STATUS_BAR_COMMAND_ID = "bazel-import.showStatusBarOptions";
 
 export const BUILD_FILE = vscode.workspace.getConfiguration('bazel-import').buildFile;
 export const TS_LANGUAGE_ID = 'typescript';
 
-let terminal: vscode.Terminal | undefined = undefined;
+export let terminal: vscode.Terminal | undefined = undefined;
 
 /**
  * Updates the terminal (used for testing to mock behavior)
@@ -33,6 +33,10 @@ export function setTerminal(update: vscode.Terminal) {
  */
 export function getTerminal() {
     return terminal; 
+}
+
+export function runTerminal(text: string) {
+    terminal?.sendText(text);
 }
 
 export enum ExtensionState {
