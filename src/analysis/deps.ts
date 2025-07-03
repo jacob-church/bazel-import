@@ -75,7 +75,9 @@ const getFile = async () => {
         canSelectMany: false,
         openLabel: "Select file",
         filters: {
+            // eslint-disable-next-line @typescript-eslint/naming-convention
             'Package files': ['ts', 'bazel'],
+            // eslint-disable-next-line @typescript-eslint/naming-convention
             'All files': ['*']
         },
         defaultUri: startUri,
@@ -116,10 +118,12 @@ export const runDeps = async (file: vscode.Uri | undefined) => {
             console.debug("Target", buildTarget, "Uri", buildUri); 
             
             // Get current bazel deps
+            const excludedDependencies = vscode.workspace.getConfiguration('bazel-import').excludeDependencies ?? undefined;
+
             const depsString: string = await getBazelDeps(
                 buildTarget, 
                 path.dirname(file.fsPath), 
-                vscode.workspace.getConfiguration('bazel-import').excludeDependencies
+                excludedDependencies
             );
             console.debug("Deps string", depsString);
             const depsArray = depsString.split('\n').filter((dep) => dep.indexOf(':') >= 0).map(dep => {
@@ -149,7 +153,7 @@ export const runDeps = async (file: vscode.Uri | undefined) => {
                     if (target === undefined) {
                         break;
                     }
-                    dependencyTargets.add(target[0]);
+                    dependencyTargets.add(target);
                 }
             }));
             // Needed so it doesn't add self dependency

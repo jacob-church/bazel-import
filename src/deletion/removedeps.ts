@@ -45,7 +45,6 @@ export const getDeletionTargets = (oldText: string, event: vscode.TextDocumentCh
 
 export const getBuildTargetFromFP = (importPath: string, currentFile: vscode.Uri): [string, vscode.Uri] => {
     let fileUri: vscode.Uri | undefined;
-    const currentDir = uriToContainingUri(currentFile); 
     if (importPath.startsWith('.')) {
         importPath = path.resolve(path.dirname(currentFile.fsPath), importPath) + ".ts";
         fileUri = vscode.Uri.file(importPath); 
@@ -71,21 +70,44 @@ const getImportsFromFile = (fileText: string): RegExpMatchArray[] => {
     return Array.from(fileText.matchAll(query));
 };
 
+const EXTERNAL_TARGETS = vscode.workspace.getConfiguration('bazel-import').externalTargets;
+
+const filterImports = (importMatches: RegExpMatchArray[], file: vscode.TextDocument): [string[], vscode.Position[]] => {
+    const targets: string[] = [];
+    const positions: vscode.Position[] = [];
+    for (const match of importMatches) {
+        let shouldContinue = false;
+        for (const [key, value] of Object.entries(EXTERNAL_TARGETS)) {
+            if (match[0].includes(key)) {
+                targets.push(value as string);
+                shouldContinue = true;
+                break;
+            }
+        }
+        if (shouldContinue) {
+            continue;
+        }
+
+        positions.push(file.positionAt(match.index! + 6));
+    }
+    return [targets, positions];
+};
+
 export const getBuildTargetsFromFile = async (fileUri: vscode.Uri) => {
     const file = await vscode.workspace.openTextDocument(fileUri); 
     const fileText = file!.getText(); 
 
     const importMatches = getImportsFromFile(fileText); 
+    const [externalTargets, importPositions] = filterImports(importMatches, file);
 
-    const importPositions = importMatches.map(match => file!.positionAt(match.index! + 6)) as vscode.Position[];
     const fileUris = await urisFromPositions(importPositions, fileUri); 
     const targets = fileUris.map(fileUri => { // 7.49 s (with ts fully loaded)
-        return uriToBuild(fileUri);
+        return uriToBuild(fileUri)?.[0];
     });
-    // const targets = await Promise.all(fileUris.map(fileUri => { // 6.2s (with ts fully loaded)
-    //     return uriToBuildTarget(uriToContainingUri(fileUri));
+    // const targets = await Promise.all(fileUris.map(async fileUri => { // 6.2s (with ts fully loaded)
+    //     return (await uriToBuildTarget(uriToContainingUri(fileUri)))?.[0];
     // }));
-    return targets;
+    return targets.concat(externalTargets);
 };
 
 const urisFromPositions = async (positions: vscode.Position[], docUri: vscode.Uri) => {

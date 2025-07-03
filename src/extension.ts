@@ -198,7 +198,10 @@ async function deleteDeps(changeEvent: vscode.TextDocumentChangeEvent) {
     // Evaluate remaining imports to see if they connect to any of the build files from the deleted imports
     const allDeps = await Promise.all(activeFile.packageSources.map(async uri => getBuildTargetsFromFile(uri!))); 
     console.log(allDeps.flat()); 
-    for (let [target, _] of allDeps.flat() as [string, vscode.Uri][]) {
+    for (const target of allDeps.flat()) {
+        if (target === undefined) {
+            continue;
+        }
         if (deletedDeps.delete(target)) {
             console.log(`${target} dep still exists\n`);
         } 

@@ -1,15 +1,23 @@
 import { exec } from 'child_process';
 
-export async function getBazelDeps(target: string, cwd: string, ...excludedTargets: string[]): Promise<string> {
+export async function getBazelDeps(target: string, cwd: string, excludedTargets?: string[]): Promise<string> {
     let command = `bazel query "labels(deps, ${target})"`;
 
-    if (excludedTargets.length > 0) {
+    if (excludedTargets && excludedTargets.length > 0) {
         const excludePart = excludedTargets.map(path => `except ${path}/...`).join(' ');
-        command = `${command} ${excludePart}`;
+        const excludeCommand = `${command} ${excludePart}`;
+        try {
+            return await executeCommand(excludeCommand, cwd);
+        }
+        catch (error) {
+            console.error("Error in except command, retrying without it");
+            return await executeCommand(command, cwd);
+        }
     }
 
     console.log(`Executing ${command} in ${cwd}`);
-    return await executeCommand(command, cwd); 
+
+    return await executeCommand(command, cwd);
 }
 
 export async function executeCommand(command: string, cwd: string): Promise<string> {
