@@ -11,11 +11,10 @@ export async function getBazelDeps(target: string, cwd: string, excludedTargets?
         }
         catch (error) {
             console.error("Error in except command, retrying without it");
-            return await executeCommand(command, cwd);
         }
     }
 
-    console.log(`Executing ${command} in ${cwd}`);
+    console.debug(`Executing ${command} in ${cwd}`);
 
     return await executeCommand(command, cwd);
 }

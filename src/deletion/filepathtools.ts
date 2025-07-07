@@ -1,19 +1,19 @@
 import * as vscode from 'vscode'; 
 import * as ts from 'typescript';
-import path = require('path');
+import * as path from 'path';
 import { filePathToTargetPath } from '../targettools';
 
 const tsExtension = vscode.extensions.getExtension('vscode.typescript-language-features');
 let active = true; 
     
 if (!tsExtension) {
-    vscode.window.showErrorMessage('TypeScript Language Features extension is not enabled.');
+    vscode.window.showErrorMessage('TypeScript Language Features are not enabled.');
     active = false; 
 }
 
-export function resolveModuleToUri(
+export function resolveSpecifierToUri(
     hostFileUri: vscode.Uri,
-    moduleSpecifier: string
+    specifier: string
 ) {
     const configPath = ts.findConfigFile(hostFileUri.fsPath, ts.sys.fileExists, 'tsconfig.json'); // This can also be used for bazel build
 
@@ -42,7 +42,7 @@ export function resolveModuleToUri(
         readFile: ts.sys.readFile,
         directoryExists: ts.sys.directoryExists,
         getCurrentDirectory: () => {
-            if (moduleSpecifier.startsWith("@")) {
+            if (specifier.startsWith("@")) {
                 return path.dirname(configPath);
             }
             else {
@@ -55,14 +55,14 @@ export function resolveModuleToUri(
     };
 
     const resolved = ts.resolveModuleName(
-        moduleSpecifier,
+        specifier,
         hostFileUri.fragment,
         parsedCommandLine.options,
         moduleResolutionHost
     );
 
     if (resolved.resolvedModule === undefined) {
-        throw Error(`Failed to resolve uri: ${moduleSpecifier}`); 
+        throw Error(`Failed to resolve uri: ${specifier}`); 
     }
 
     return vscode.Uri.file(resolved.resolvedModule.resolvedFileName);

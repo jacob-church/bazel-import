@@ -3,7 +3,7 @@ import {uriToContainingUri} from './uritools';
 import {uriToBuildTarget} from './targettools';
 import {positionsFromTextChanges, urisFromTextChanges} from './importparse';
 import {getImportedTargets} from './bazeltools';
-import { getBuildTargetFromFP, getBuildTargetsFromFile, getDeletionTargets } from './deletion/removedeps';
+import { getBuildTargetFromFilePath, getBuildTargetsFromFile, getDeletionTargets } from './deletion/removedeps';
 import { showDismissableFileMessage, showDismissableMessage, updateMaxPackageSize } from './userinteraction';
 import { updateActiveEditor } from './deletion/active';
 import * as path from 'path';
@@ -178,7 +178,7 @@ async function deleteDeps(changeEvent: vscode.TextDocumentChangeEvent) {
 
     // Find the build file(s) for deleted imports
     const deletedDeps: Set<string> = new Set(); 
-    const buildUris = deletedImports.map(deletedImport => getBuildTargetFromFP(deletedImport, activeFile!.uri));
+    const buildUris = deletedImports.map(deletedImport => getBuildTargetFromFilePath(deletedImport, activeFile!.uri));
     for (const buildUri of buildUris) {
         if (buildUri[0] !== activeFile.target) {
             deletedDeps.add(buildUri[0]); 
@@ -239,6 +239,64 @@ async function deleteDeps(changeEvent: vscode.TextDocumentChangeEvent) {
     setExtensionState(ExtensionState.ready);
 }
 
+// ADDITION
+async function addDeps(changeEvent: vscode.TextDocumentChangeEvent) {
+    const targets = new Set(); // if changeEvent.document !== window.activeTextEditor?.document, we should ignore this change
+    let buildFileUri: vscode.Uri | undefined; // let's assert that the changeEvent matches the currently open text editor; that will filter out changes that come from other sources
+    
+    // Step 1: Find symbol position for dependency lookup and external build targets (e.g. @angule/core)
+    const [positions, externalTargets] = positionsFromTextChanges(changeEvent.contentChanges);
+    externalTargets.forEach((val) => targets.add(val));
+    if (positions.length + externalTargets.size === 0) {
+        return;
+    }
+
+    // Step 2: Determine the current build target (e.g. where are we adding new dependencies to?)
+    let currentTargetPair: [string, vscode.Uri] | undefined;
+    if (!activeFile) {
+        currentTargetPair = await uriToBuildTarget(uriToContainingUri(changeEvent.document.uri));
+    }
+    const currentTarget = activeFile?.target ?? currentTargetPair?.[0];
+    buildFileUri = activeFile?.buildUri ?? currentTargetPair?.[1];
+    if (!currentTarget) {
+        return;
+    }
+
+    // Step 3: Lookup Symbols and find the file paths where they are defined
+    const uris = await urisFromTextChanges(positions, changeEvent.document.uri);
+    if (uris.length === 0) {
+        return;
+    }
+    console.debug('Adding uris:', uris);
+
+    // Step 4: Convert file paths to relevant build targets
+    const depTargets = await getImportedTargets(uris, currentTarget);
+    depTargets.forEach((val) => targets.add(val));
+    if (targets.size === 0) {
+        return;
+    }
+
+    // Step 5: Do the update
+    if (!terminal) {
+        terminal = vscode.window.createTerminal({
+            hideFromUser: true,
+            isTransient: true,
+        });
+    }
+    const deps = Array.from(targets).join(' ');
+    const buildozer = `buildozer "add deps ${deps}" "${currentTarget}"`;
+    console.log(`Executing: ${buildozer}`);
+    terminal.sendText(buildozer);
+    showDismissableFileMessage(`Bazel deps added to ${BUILD_FILE}`, buildFileUri);
+}
+
+function activateStatusBarCommand(): vscode.Disposable {
+    activeStatusBarItem.text = '$(wand)';
+    activeStatusBarItem.tooltip = 'Run dependency fixup on a bazel package';
+    activeStatusBarItem.command = STATUS_BAR_COMMAND_ID;
+    activeStatusBarItem.show();
+    return vscode.commands.registerCommand(STATUS_BAR_COMMAND_ID, statusBarOptions);
+}
 
 export async function activate(context: vscode.ExtensionContext) {
     const bazelCommand = vscode.commands.registerCommand('bazel-import.openBazel', async () => {
@@ -258,65 +316,15 @@ export async function activate(context: vscode.ExtensionContext) {
         if (changeEvent.contentChanges.length === 0 || changeEvent.document.uri.fsPath !== vscode.window.activeTextEditor?.document.uri.fsPath) {
             return; // skip empty changes and changes from other documents
         }
-        const targets = new Set(); // if changeEvent.document !== window.activeTextEditor?.document, we should ignore this change
-        let buildFileUri: vscode.Uri | undefined; // let's assert that the changeEvent matches the currently open text editor; that will filter out changes that come from other sources
 
         // DELETIONS
         if (deletionEnabled && vscode.workspace.getConfiguration('bazel-import').enableDeletion) {
             deleteDeps(changeEvent);
         }
-
-        // Step 1: Find symbol position for dependency lookup and external build targets (e.g. @angule/core)
-        const [positions, externalTargets] = positionsFromTextChanges(changeEvent.contentChanges);
-        externalTargets.forEach((val) => targets.add(val));
-        if (positions.length + externalTargets.size === 0) {
-            return;
-        }
-
-        // Step 2: Determine the current build target (e.g. where are we adding new dependencies to?) [DELETE] 
-        const currentUri = activeFile?.uri ?? uriToContainingUri(changeEvent.document.uri);
-        let currentTargetPair: [string, vscode.Uri] | undefined;
-        if (!activeFile) {
-            currentTargetPair = await uriToBuildTarget(currentUri);
-        }
-        const currentTarget = activeFile?.target ?? currentTargetPair?.[0];
-        buildFileUri = activeFile?.buildUri ?? currentTargetPair?.[1];
-        if (!currentTarget) {
-            return;
-        }
-
-        // Step 3: Lookup Symbols and find the file paths where they are defined
-        const uris = await urisFromTextChanges(positions, changeEvent.document.uri);
-        if (uris.length === 0) {
-            return;
-        }
-
-        // Step 4: Convert file paths to relevant build targets
-        const depTargets = await getImportedTargets(uris, currentTarget);
-        depTargets.forEach((val) => targets.add(val));
-        if (targets.size === 0) {
-            return;
-        }
-
-        // Step 5: Do the update
-        if (!terminal) {
-            terminal = vscode.window.createTerminal({
-                hideFromUser: true,
-                isTransient: true,
-            });
-        }
-        const deps = Array.from(targets).join(' ');
-        const buildozer = `buildozer "add deps ${deps}" "${currentTarget}"`;
-        console.log(`Executing: ${buildozer}`);
-        terminal.sendText(buildozer);
-        showDismissableFileMessage(`Bazel deps added to ${BUILD_FILE}`, buildFileUri);
+        addDeps(changeEvent);
     });
 
-    activeStatusBarItem.text = '$(wand)';
-    activeStatusBarItem.tooltip = 'Run dependency fixup on a bazel package';
-    activeStatusBarItem.command = STATUS_BAR_COMMAND_ID;
-    const statusBarCommand = vscode.commands.registerCommand(STATUS_BAR_COMMAND_ID, statusBarOptions);
-    activeStatusBarItem.show();
+    const statusBarCommand = activateStatusBarCommand();
 
     context.subscriptions.push(bazelCommand, changeEditorListener, changeTextListener, activeStatusBarItem, statusBarCommand);
 

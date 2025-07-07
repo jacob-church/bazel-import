@@ -1,8 +1,6 @@
 import * as vscode from 'vscode';
-import { uriToBuildTarget } from '../targettools';
-import { uriToContainingUri } from '../uritools';
 import { urisFromTextChanges } from '../importparse';
-import { uriToBuild, resolveModuleToUri } from './filepathtools';
+import { uriToBuild, resolveSpecifierToUri } from './filepathtools';
 import * as path from 'path';
 
 
@@ -43,14 +41,14 @@ export const getDeletionTargets = (oldText: string, event: vscode.TextDocumentCh
     return importDeletions; 
 };
 
-export const getBuildTargetFromFP = (importPath: string, currentFile: vscode.Uri): [string, vscode.Uri] => {
+export const getBuildTargetFromFilePath = (importPath: string, currentFile: vscode.Uri): [string, vscode.Uri] => {
     let fileUri: vscode.Uri | undefined;
     if (importPath.startsWith('.')) {
         importPath = path.resolve(path.dirname(currentFile.fsPath), importPath) + ".ts";
         fileUri = vscode.Uri.file(importPath); 
     }
     else {
-        fileUri = resolveModuleToUri(currentFile, importPath);
+        fileUri = resolveSpecifierToUri(currentFile, importPath);
     }
 
     if (!fileUri) {
@@ -61,7 +59,6 @@ export const getBuildTargetFromFP = (importPath: string, currentFile: vscode.Uri
         throw new Error("Unexpected undefined target");
     }
     return target;
-        // return (await uriToBuildTarget(uriToContainingUri(fileUri)))!;  
 };
 
 const getImportsFromFile = (fileText: string): RegExpMatchArray[] => {
@@ -101,12 +98,9 @@ export const getBuildTargetsFromFile = async (fileUri: vscode.Uri) => {
     const [externalTargets, importPositions] = filterImports(importMatches, file);
 
     const fileUris = await urisFromPositions(importPositions, fileUri); 
-    const targets = fileUris.map(fileUri => { // 7.49 s (with ts fully loaded)
+    const targets = fileUris.map(fileUri => {
         return uriToBuild(fileUri)?.[0];
     });
-    // const targets = await Promise.all(fileUris.map(async fileUri => { // 6.2s (with ts fully loaded)
-    //     return (await uriToBuildTarget(uriToContainingUri(fileUri)))?.[0];
-    // }));
     return targets.concat(externalTargets);
 };
 
