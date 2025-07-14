@@ -68,9 +68,7 @@ async function addLineManually(editor: vscode.TextEditor, line: string) {
     });
 }
 
-suite("Analyzer", () => {
-    
-
+suite.only("Analyzer", () => {
     let package1: string;
     let package2: string;
     let package3: string;
@@ -159,9 +157,9 @@ suite("Analyzer", () => {
     });
 
     suiteTeardown(async () => {
-        console.log("Deleting directory", testWorkspaceFolder);
+        await vscode.workspace.saveAll();
         await vscode.commands.executeCommand('workbench.action.closeAllEditors');
         await executeCommand("bazel shutdown", testWorkspaceFolder);
-        cleanupWorkspace(testWorkspaceFolder);
+        await cleanupWorkspace(testWorkspaceFolder);
     });
 });

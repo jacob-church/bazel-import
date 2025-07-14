@@ -1,6 +1,7 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
+import * as vscode from 'vscode';
 
 const tempDirPrefix = 'vscode-extension-test-';
 
@@ -112,12 +113,13 @@ export function test2b() {
     return {testWorkspaceFolder, package1, package2, package3, package4, package5};
 }
 
-export function cleanupWorkspace(testWorkspaceFolder: string) {
+export async function cleanupWorkspace(testWorkspaceFolder: string) {
     // Clean up the temporary directory
     if (fs.existsSync(testWorkspaceFolder)) {
         try {
-            fs.rmSync(testWorkspaceFolder, { recursive: true, force: true });
-            console.log(`Cleaned up test workspace: ${testWorkspaceFolder}`);
+            const folderUri = vscode.Uri.parse(testWorkspaceFolder);
+            await vscode.workspace.fs.delete(folderUri, {recursive: true, useTrash: false});
+            console.log(`Workspace closed ${testWorkspaceFolder}`);
         } catch (error) {
             console.error(`Failed to delete ${testWorkspaceFolder}`);
             console.error(error);
