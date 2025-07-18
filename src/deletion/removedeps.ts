@@ -11,21 +11,47 @@ const isChangeDelete = (change: vscode.TextDocumentContentChangeEvent): boolean 
     return change.text === '' && change.rangeLength > MIN_LENGTH;
 };
 
-export const getDeletedImports = (oldText: string, event: vscode.TextDocumentChangeEvent) => {
+
+export function getDeletedImports(text: string, event: vscode.TextDocumentChangeEvent) {
+    return getImportsFromTextAndChangeEvent(text, event, isChangeDelete);
+}
+
+
+export function getImportsFromChangeEvent(event: vscode.TextDocumentChangeEvent) {
+    const changes = event.contentChanges;
+
+    const importBuildTargets: Set<string> = new Set<string>();
+
+    for (const change of changes) {
+        if (change.text.length <= MIN_LENGTH && change.rangeLength <= MIN_LENGTH) {
+            continue;
+        }
+
+        const matches = getImportsFromText(change.text);
+        const importTargets = filterImports(matches, event.document.uri);
+        for (const target of importTargets) {
+            importBuildTargets.add(target);
+        }
+    }
+    return importBuildTargets;
+}
+
+
+export const getImportsFromTextAndChangeEvent = (text: string, event: vscode.TextDocumentChangeEvent, validateChange: (change: vscode.TextDocumentContentChangeEvent) => boolean) => {
     const changes: readonly vscode.TextDocumentContentChangeEvent[] = event.contentChanges; 
     const splitter = '\n';
 
     const importDeletions: string[] = new Array(); 
     for (let change of changes) {
-        // Should this be combined with the adds? 
-        if (!isChangeDelete(change)) {
+
+        if (!validateChange(change)) {
             continue;
         }
         const startIndex = event.document.offsetAt(change.range.start);
         const endIndex = Math.max(event.document.offsetAt(change.range.end), startIndex + change.rangeLength);
 
-        // TODO: switch to regex
-        const deletion = oldText.substring(startIndex, endIndex);
+        // TODO: switch to regex?
+        const deletion = text.substring(startIndex, endIndex);
         const deletedTexts = deletion.split(splitter);
         
         for (const deletedText of deletedTexts) {
@@ -42,6 +68,7 @@ export const getDeletedImports = (oldText: string, event: vscode.TextDocumentCha
     return importDeletions; 
 };
 
+// TODO MOVE
 export const getBuildTargetFromFilePath = (importPath: string, currentFile: vscode.Uri): [string, vscode.Uri] => {
     let fileUri: vscode.Uri | undefined;
     if (importPath.startsWith('.')) {
@@ -62,13 +89,15 @@ export const getBuildTargetFromFilePath = (importPath: string, currentFile: vsco
     return target;
 };
 
-const getImportsFromFile = (fileText: string): RegExpMatchArray[] => {
+// TODO MOVE RENAME
+const getImportsFromText = (fileText: string): RegExpMatchArray[] => {
     const query = new RegExp("from \'.*\';", "gi");
 
     return Array.from(fileText.matchAll(query));
 };
 
 
+// TODO MOVE
 /**
  * Gets the build dependencies of a file defined by a vscode.Uri
  * @param fileUri the file to examine
@@ -82,12 +111,13 @@ export const getBuildTargetsFromFile = async (fileUri: vscode.Uri) => {
     const file = await vscode.workspace.openTextDocument(fileUri); 
     const fileText = file!.getText(); 
     
-    const importMatches = getImportsFromFile(fileText); 
+    const importMatches = getImportsFromText(fileText); 
     const targets = filterImports(importMatches, fileUri);
     
     return targets;
 };
 
+// TODO MOVE RENAME
 const filterImports = (importMatches: RegExpMatchArray[], fileUri: vscode.Uri): string[] => {
     const targets: string[] = [];
     for (const match of importMatches) {

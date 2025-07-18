@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { Cache } from './basecache';
 import {handleActiveFileDirectoryChange, TS_LANGUAGE_ID, ExtensionState, setExtensionState, activeStatusBarItem} from '../extension';
 import {uriToContainingUri} from '../uritools';
-import {packageSourceUris} from '../targettools';
+import {getPackageSourceUris} from '../targettools';
 import { ActiveFile } from '../model/activeFile';
 import {MAX_PKG_SIZE, showDismissableMessage, showErrorMessage, updateMaxPackageSize} from '../userinteraction';
 import * as path from 'path';
@@ -25,7 +25,7 @@ function urisFromStrings(strings: string[]): vscode.Uri[] {
 }
 
 async function loadPackageSources(document: vscode.TextDocument) {
-    const currentTargetPair = await packageSourceUris(uriToContainingUri(document.uri));
+    const currentTargetPair = await getPackageSourceUris(uriToContainingUri(document.uri));
     if (currentTargetPair === undefined) {
         showErrorMessage(
             `${path.basename(document.uri.fsPath)} failed to open`

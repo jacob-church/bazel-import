@@ -53,7 +53,7 @@ async function getSubDirectorySources(uri: vscode.Uri): Promise<vscode.Uri[]> {
     return subTargets; 
 }
 
-export async function packageSourceUris(uri: vscode.Uri): Promise<[vscode.Uri[], string, vscode.Uri] | undefined> {
+export async function getPackageSourceUris(uri: vscode.Uri): Promise<[vscode.Uri[], string, vscode.Uri] | undefined> {
     let currentUri = uri; 
     const targetUris: vscode.Uri[] = new Array(); 
     let targetPath; let buildUri; 

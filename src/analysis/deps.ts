@@ -3,7 +3,7 @@ import * as path from 'path';
 import { uriToBuild } from '../deletion/filepathtools';
 import { BUILD_FILE } from '../extension';
 import { getBuildTargetsFromFile } from '../deletion/removedeps';
-import { packageSourceUris } from '../targettools';
+import { getPackageSourceUris } from '../targettools';
 import { uriToContainingUri } from '../uritools';
 import { executeCommand, getBazelDeps, handleBuildozerError } from './executil';
 import { showDismissableFileMessage, showDismissableMessage } from '../userinteraction';
@@ -139,23 +139,14 @@ export const runDeps = async (file: vscode.Uri | undefined) => {
 
             // Get current package sources
             progress.report({message: "getting current package"});
-            const [packageUris,,] = await packageSourceUris(uriToContainingUri(file)) ?? [undefined, undefined, undefined];
+            const [packageUris,,] = await getPackageSourceUris(uriToContainingUri(file)) ?? [undefined, undefined, undefined];
             if (packageUris === undefined || token.isCancellationRequested) {
                 cancellationDisposable.dispose();
                 return;
             }
 
             progress.report({message: `analyzing dependencies for ${packageUris.length} source file(s)`});
-            const dependencyTargets = new Set<string>();
-            await Promise.all(packageUris.map(async sourceUri => {
-                const targets = await getBuildTargetsFromFile(sourceUri); 
-                for (const target of targets) {
-                    if (target === undefined) {
-                        break;
-                    }
-                    dependencyTargets.add(target);
-                }
-            }));
+            const dependencyTargets = await dependenciesFromFiles(packageUris);
             // Needed so it doesn't add self dependency
             dependencyTargets.delete(buildTarget);
             console.debug("Dependencies", dependencyTargets);
@@ -206,5 +197,19 @@ async function updateBuildDeps(addDeps: string[], removeDeps: string[], buildTar
         return true;
     }
     return false;
+}
+
+async function dependenciesFromFiles(packageUris: vscode.Uri[]) {
+    const dependencyTargets = new Set<string>();
+    await Promise.all(packageUris.map(async sourceUri => {
+        const targets = await getBuildTargetsFromFile(sourceUri); 
+        for (const target of targets) {
+            if (target === undefined) {
+                break;
+            }
+            dependencyTargets.add(target);
+        }
+    }));
+    return dependencyTargets;
 }
 
