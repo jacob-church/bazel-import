@@ -1,5 +1,7 @@
 import * as vscode from 'vscode'; 
 
+export let MAX_PKG_SIZE: number = vscode.workspace.getConfiguration('bazel-import').maxPackageSize; 
+
 const DISMISS_BUTTON = "Don't show this again";
 const OPEN_BUTTON = 'Open';
 
@@ -35,10 +37,21 @@ export const updateMaxPackageSize = async () => {
     if (maxSize) {
         await vscode.workspace.getConfiguration('bazel-import').update('maxPackageSize', maxSize); 
         vscode.window.showInformationMessage(`New maximum package size: ${vscode.workspace.getConfiguration('bazel-import').maxPackageSize}`);
+        MAX_PKG_SIZE = parseInt(maxSize);
     }
     else {
         vscode.window.showInformationMessage(`Operation aborted`);
     }
+};
+
+export const showErrorMessage = (message: string, fileUri?: vscode.Uri) => {
+    vscode.window
+        .showErrorMessage(message, OPEN_BUTTON)
+        .then((button) => {
+            if (button === OPEN_BUTTON && fileUri) {
+                vscode.window.showTextDocument(fileUri);
+            }
+        });
 };
 
 export const showDismissableFileMessage = (message: string, fileUri?: vscode.Uri) => {
