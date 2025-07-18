@@ -64,7 +64,7 @@ export function resolveSpecifierToUri(
     );
 
     if (resolved.resolvedModule === undefined) {
-        throw Error(`Failed to resolve uri: ${specifier}`); 
+        return undefined; 
     }
 
     return vscode.Uri.file(resolved.resolvedModule.resolvedFileName);

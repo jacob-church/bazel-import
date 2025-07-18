@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import {uriToContainingUri} from './uritools';
 import {uriToBuildTarget} from './targettools';
-import {getBuildTargetFromFilePath, getBuildTargetsFromFile, getImportsFromChangeEvent, getDeletedImports} from './deletion/removedeps';
+import {getBuildTargetFromFilePath, getBuildTargetsFromFile, getBuildTargetsFromAdditions, getBuildTargetsFromDeletions} from './deletion/removedeps';
 import { showDismissableFileMessage, showDismissableMessage } from './userinteraction';
 import { packageTooLarge, updateActiveEditor } from './deletion/active';
 import * as path from 'path';
@@ -103,23 +103,15 @@ async function deleteDeps(changeEvent: vscode.TextDocumentChangeEvent, changedFi
 
     extensionState = ExtensionState.waiting;
 
-    // Get the import deletions for evaluation 
-    const deletedImports: string[] = getDeletedImports(changedFile.documentState, changeEvent);
-    if (deletedImports.length === 0) {
-        return;
-    }
-
     activeStatusBarItem.text = '$(sync~spin)';
     activeStatusBarItem.tooltip = 'Getting build files';
 
     // Find the build file(s) for deleted imports
-    const deletedDeps: Set<string> = new Set(); 
-    const buildUris = deletedImports.map(deletedImport => getBuildTargetFromFilePath(deletedImport, changedFile.uri));
-    for (const buildUri of buildUris) {
-        if (buildUri[0] !== changedFile.target) {
-            deletedDeps.add(buildUri[0]); 
-        }
+    const deletedDeps: Set<string> = getBuildTargetsFromDeletions(changedFile.documentState, changeEvent);
+    if (deletedDeps.size === 0) {
+        return;
     }
+    deletedDeps.delete(changedFile.target);
 
     if (deletedDeps.size === 0) {
         showDismissableMessage("Bazel deps not removed (deleted import is in package)");
@@ -128,7 +120,7 @@ async function deleteDeps(changeEvent: vscode.TextDocumentChangeEvent, changedFi
     
     activeStatusBarItem.tooltip = `Analyzing ${deletedDeps.size} import(s)\n`;
 
-    // Evaluate remaining imports to see if they depend on any of the build files from the deleted imports
+    // Evaluate remaining imports to see if they depend on any of the build files from the deleted imports //TODO Factor this out
     const allDeps = await Promise.all(changedFile.packageSources.map(async uri => getBuildTargetsFromFile(uri!))); 
     console.log(allDeps.flat()); 
     for (const target of allDeps.flat()) {
@@ -177,7 +169,7 @@ async function addDeps(changeEvent: vscode.TextDocumentChangeEvent, changedFile:
     }
 
     // Step 2: Get the build targets from the added imports
-    const targets = getImportsFromChangeEvent(changeEvent);
+    const targets = getBuildTargetsFromAdditions(changeEvent);
     if (targets.size === 0) {
         return;
     }

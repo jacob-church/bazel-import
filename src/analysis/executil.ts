@@ -25,10 +25,6 @@ export async function executeCommand(command: string, cwd: string): Promise<stri
     return new Promise((resolve, reject) => {
         exec(command, {cwd: cwd}, (error, stdout, stderr) => {
             if (error) {
-                console.debug(`exec error: ${error}`);
-                if (stderr) {
-                    console.debug(`stderr: ${stderr}`);
-                };
                 return reject({
                     "error": error,
                     "stderr": stderr

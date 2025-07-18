@@ -2,74 +2,61 @@ import * as vscode from 'vscode';
 import { urisFromTextChanges } from '../importparse';
 import { uriToBuild, resolveSpecifierToUri } from './filepathtools';
 import * as path from 'path';
+import { showErrorMessage } from '../userinteraction';
 
 
 const EXTERNAL_TARGETS = vscode.workspace.getConfiguration('bazel-import').externalTargets;
 const MIN_LENGTH = 7; // Minimum length of a ts import "from ''"
 
+export function getBuildTargetsFromDeletions(text: string, event: vscode.TextDocumentChangeEvent) {
+    return getTargetsFromEvent(
+        event,
+        (change) => {
+            const startIndex = event.document.offsetAt(change.range.start);
+            const endIndex = Math.max(event.document.offsetAt(change.range.end), startIndex + change.rangeLength);
+            return text.substring(startIndex, endIndex);
+        },
+        isChangeDelete
+    );
+}
+
 const isChangeDelete = (change: vscode.TextDocumentContentChangeEvent): boolean => {
     return change.text === '' && change.rangeLength > MIN_LENGTH;
 };
 
-
-export function getDeletedImports(text: string, event: vscode.TextDocumentChangeEvent) {
-    return getImportsFromTextAndChangeEvent(text, event, isChangeDelete);
+export function getBuildTargetsFromAdditions(event: vscode.TextDocumentChangeEvent) {
+    return getTargetsFromEvent(
+        event,
+        (change) => change.text,
+        (change) => change.text.length > MIN_LENGTH || change.rangeLength > MIN_LENGTH
+    );
 }
 
-
-export function getImportsFromChangeEvent(event: vscode.TextDocumentChangeEvent) {
+function getTargetsFromEvent(
+    event: vscode.TextDocumentChangeEvent, 
+    textSrc: (change: vscode.TextDocumentContentChangeEvent) => string, 
+    isValid: (change: vscode.TextDocumentContentChangeEvent) => boolean
+) {
     const changes = event.contentChanges;
 
-    const importBuildTargets: Set<string> = new Set<string>();
+    const targets: Set<string> = new Set<string>();
 
     for (const change of changes) {
-        if (change.text.length <= MIN_LENGTH && change.rangeLength <= MIN_LENGTH) {
+        if (!isValid(change)) {
             continue;
         }
 
-        const matches = getImportsFromText(change.text);
+        const matches = getImportsFromText(textSrc(change));
         const importTargets = filterImports(matches, event.document.uri);
         for (const target of importTargets) {
-            importBuildTargets.add(target);
+            targets.add(target);
         }
     }
-    return importBuildTargets;
+    return targets;
 }
 
-
-export const getImportsFromTextAndChangeEvent = (text: string, event: vscode.TextDocumentChangeEvent, validateChange: (change: vscode.TextDocumentContentChangeEvent) => boolean) => {
-    const changes: readonly vscode.TextDocumentContentChangeEvent[] = event.contentChanges; 
-    const splitter = '\n';
-
-    const importDeletions: string[] = new Array(); 
-    for (let change of changes) {
-
-        if (!validateChange(change)) {
-            continue;
-        }
-        const startIndex = event.document.offsetAt(change.range.start);
-        const endIndex = Math.max(event.document.offsetAt(change.range.end), startIndex + change.rangeLength);
-
-        // TODO: switch to regex?
-        const deletion = text.substring(startIndex, endIndex);
-        const deletedTexts = deletion.split(splitter);
-        
-        for (const deletedText of deletedTexts) {
-            const searchString = "from \'";
-            const filePathIndex = deletedText.indexOf(searchString) + searchString.length; 
-            if (filePathIndex >= searchString.length) {
-                importDeletions.push(deletedText.slice(filePathIndex, deletedText.length - 2)); 
-            }
-            else {
-                console.log(`Deletion not an import:\n${deletedText}`);
-            }
-        }
-    }
-    return importDeletions; 
-};
-
 // TODO MOVE
-export const getBuildTargetFromFilePath = (importPath: string, currentFile: vscode.Uri): [string, vscode.Uri] => {
+export const getBuildTargetFromFilePath = (importPath: string, currentFile: vscode.Uri):  [string, vscode.Uri] => {
     let fileUri: vscode.Uri | undefined;
     if (importPath.startsWith('.')) {
         importPath = path.resolve(path.dirname(currentFile.fsPath), importPath) + ".ts";
@@ -80,11 +67,11 @@ export const getBuildTargetFromFilePath = (importPath: string, currentFile: vsco
     }
 
     if (!fileUri) {
-        throw new Error("Unexpected lack of uri"); 
+        throw new Error("File not found");
     }
     const target = uriToBuild(fileUri);
     if (!target) {
-        throw new Error("Unexpected undefined target");
+        throw new Error("Target not found");
     }
     return target;
 };
@@ -137,8 +124,10 @@ const filterImports = (importMatches: RegExpMatchArray[], fileUri: vscode.Uri): 
             const filePathIndex = match[0].indexOf(searchString) + searchString.length; 
             const filePath = match[0].slice(filePathIndex, match[0].length - 2);
             try {
-                const [buildTarget,] = getBuildTargetFromFilePath(filePath, fileUri);
-                targets.push(buildTarget);
+                const [buildTarget,] = getBuildTargetFromFilePath(filePath, fileUri) ?? [undefined, undefined];
+                if (buildTarget !== undefined) {
+                    targets.push(buildTarget);
+                }
             }
             catch (error) {
                 console.debug(`Build target not found ${filePath}`);
