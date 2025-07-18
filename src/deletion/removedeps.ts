@@ -4,13 +4,14 @@ import { uriToBuild, resolveSpecifierToUri } from './filepathtools';
 import * as path from 'path';
 
 
-const MIN_LENGTH = 7;
+const EXTERNAL_TARGETS = vscode.workspace.getConfiguration('bazel-import').externalTargets;
+const MIN_LENGTH = 7; // Minimum length of a ts import "from ''"
 
 const isChangeDelete = (change: vscode.TextDocumentContentChangeEvent): boolean => {
     return change.text === '' && change.rangeLength > MIN_LENGTH;
 };
 
-export const getDeletionTargets = (oldText: string, event: vscode.TextDocumentChangeEvent) => {
+export const getDeletedImports = (oldText: string, event: vscode.TextDocumentChangeEvent) => {
     const changes: readonly vscode.TextDocumentContentChangeEvent[] = event.contentChanges; 
     const splitter = '\n';
 
@@ -28,9 +29,9 @@ export const getDeletionTargets = (oldText: string, event: vscode.TextDocumentCh
         const deletedTexts = deletion.split(splitter);
         
         for (const deletedText of deletedTexts) {
-            const filePathIndex = deletedText.indexOf("from \'") + 6; 
-            if (filePathIndex >= 6) {
-
+            const searchString = "from \'";
+            const filePathIndex = deletedText.indexOf(searchString) + searchString.length; 
+            if (filePathIndex >= searchString.length) {
                 importDeletions.push(deletedText.slice(filePathIndex, deletedText.length - 2)); 
             }
             else {
@@ -67,11 +68,28 @@ const getImportsFromFile = (fileText: string): RegExpMatchArray[] => {
     return Array.from(fileText.matchAll(query));
 };
 
-const EXTERNAL_TARGETS = vscode.workspace.getConfiguration('bazel-import').externalTargets;
 
-const filterImports = (importMatches: RegExpMatchArray[], file: vscode.TextDocument): [string[], vscode.Position[]] => {
+/**
+ * Gets the build dependencies of a file defined by a vscode.Uri
+ * @param fileUri the file to examine
+ * @returns the build targets of the file's dependencies
+*/
+export const getBuildTargetsFromFile = async (fileUri: vscode.Uri) => {
+    if (fileUri.fsPath.includes("luciddocument.ts")) {
+        console.error("We did it");
+        console.log("import {DocumentStatusCalculatorPipe} from './astevaluator/formula/pipes/documentstatuscalculatorpipe';");
+    }
+    const file = await vscode.workspace.openTextDocument(fileUri); 
+    const fileText = file!.getText(); 
+    
+    const importMatches = getImportsFromFile(fileText); 
+    const targets = filterImports(importMatches, fileUri);
+    
+    return targets;
+};
+
+const filterImports = (importMatches: RegExpMatchArray[], fileUri: vscode.Uri): string[] => {
     const targets: string[] = [];
-    const positions: vscode.Position[] = [];
     for (const match of importMatches) {
         let shouldContinue = false;
         for (const [key, value] of Object.entries(EXTERNAL_TARGETS)) {
@@ -84,27 +102,20 @@ const filterImports = (importMatches: RegExpMatchArray[], file: vscode.TextDocum
         if (shouldContinue) {
             continue;
         }
-
-        positions.push(file.positionAt(match.index! + 6));
+        else {
+            const searchString = "from \'";
+            const filePathIndex = match[0].indexOf(searchString) + searchString.length; 
+            const filePath = match[0].slice(filePathIndex, match[0].length - 2);
+            try {
+                const [buildTarget,] = getBuildTargetFromFilePath(filePath, fileUri);
+                targets.push(buildTarget);
+            }
+            catch (error) {
+                console.debug(`Build target not found ${filePath}`);
+                console.error(error);
+            }
+        }
     }
-    return [targets, positions];
-};
-
-export const getBuildTargetsFromFile = async (fileUri: vscode.Uri) => {
-    const file = await vscode.workspace.openTextDocument(fileUri); 
-    const fileText = file!.getText(); 
-
-    const importMatches = getImportsFromFile(fileText); 
-    const [externalTargets, importPositions] = filterImports(importMatches, file);
-
-    const fileUris = await urisFromPositions(importPositions, fileUri); 
-    const targets = fileUris.map(fileUri => {
-        return uriToBuild(fileUri)?.[0];
-    });
-    return targets.concat(externalTargets);
-};
-
-const urisFromPositions = async (positions: vscode.Position[], docUri: vscode.Uri) => {
-    return urisFromTextChanges(positions, docUri); 
+    return targets;
 };
 

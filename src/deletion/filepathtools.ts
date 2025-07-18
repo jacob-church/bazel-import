@@ -2,14 +2,18 @@ import * as vscode from 'vscode';
 import * as ts from 'typescript';
 import * as path from 'path';
 import { filePathToTargetPath } from '../targettools';
+import { Cache } from './basecache';
+import { showErrorMessage } from '../userinteraction';
 
 const tsExtension = vscode.extensions.getExtension('vscode.typescript-language-features');
 let active = true; 
     
 if (!tsExtension) {
-    vscode.window.showErrorMessage('TypeScript Language Features are not enabled.');
+    showErrorMessage('TypeScript Language Features are not enabled.');
     active = false; 
 }
+
+let configCache: Cache<string, ts.ParsedCommandLine> = new Cache<string, ts.ParsedCommandLine>(vscode.workspace.getConfiguration('bazel-import').maxCacheSize);
 
 export function resolveSpecifierToUri(
     hostFileUri: vscode.Uri,
@@ -21,21 +25,13 @@ export function resolveSpecifierToUri(
         return undefined; 
     }
 
-    const configContent = ts.sys.readFile(configPath);
-    if (!configContent) {
-        return undefined;
+    if (!configCache.has(configPath)) {
+        const parsedCommandLine = getConfiguration(configPath);
+        if (parsedCommandLine === undefined) {
+            return undefined;
+        }
+        configCache.set(configPath, parsedCommandLine);
     }
-    const { config, error } = ts.parseConfigFileTextToJson(configPath, configContent);
-    if (error) {
-        console.error(`Error parsing tsconfig file ${configPath}:`);
-        return; 
-    }
-        
-    const parsedCommandLine = ts.parseJsonConfigFileContent(
-            config,
-            ts.sys,
-            path.dirname(configPath)
-        );
 
     const moduleResolutionHost: ts.ModuleResolutionHost = {
         fileExists: ts.sys.fileExists,
@@ -54,10 +50,16 @@ export function resolveSpecifierToUri(
         useCaseSensitiveFileNames: ts.sys.useCaseSensitiveFileNames,
     };
 
+    const parsedConfig = configCache.get(configPath);
+
+    if (parsedConfig === undefined) {
+        return undefined;
+    }
+
     const resolved = ts.resolveModuleName(
         specifier,
         hostFileUri.fragment,
-        parsedCommandLine.options,
+        parsedConfig.options,
         moduleResolutionHost
     );
 
@@ -68,13 +70,35 @@ export function resolveSpecifierToUri(
     return vscode.Uri.file(resolved.resolvedModule.resolvedFileName);
 }
 
+function getConfiguration(configPath: string): ts.ParsedCommandLine | undefined {
+    const configContent = ts.sys.readFile(configPath);
+    if (!configContent) {
+        return undefined;
+    }
+    const { config, error } = ts.parseConfigFileTextToJson(configPath, configContent);
+    if (error) {
+        console.error(`Error parsing tsconfig file ${configPath}:`);
+        return; 
+    }
+        
+    const parsedCommandLine = ts.parseJsonConfigFileContent(
+        config,
+        ts.sys,
+        path.dirname(configPath)
+    );
+
+    return parsedCommandLine;
+}
+
+const BUILD_FILE = vscode.workspace.getConfiguration('bazel-import').buildFile;
+
 export function uriToBuild(uri: vscode.Uri): [string, vscode.Uri] | undefined {
-    const configPath = ts.findConfigFile(uri.fsPath, ts.sys.fileExists, vscode.workspace.getConfiguration('bazel-import').buildFile);
+    const configPath = ts.findConfigFile(uri.fsPath, ts.sys.fileExists, BUILD_FILE);
     if (!configPath) {
         return undefined;
     }
     const rawTarget = filePathToTargetPath(configPath);
-    const index = rawTarget?.indexOf(vscode.workspace.getConfiguration('bazel-import').buildFile) ?? 1;
+    const index = rawTarget?.indexOf(BUILD_FILE) ?? 1;
 
     const target = rawTarget?.slice(0, index - 1); 
     const targetUri = vscode.Uri.file(configPath); 

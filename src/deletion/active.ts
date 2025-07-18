@@ -1,10 +1,13 @@
 import * as vscode from 'vscode';
 import { Cache } from './basecache';
-import {getActiveFile, getEnabledStatus, getStatusBarItem, setActiveFile, handleActiveFileDirectoryChange, TS_LANGUAGE_ID, validatePackageSize, ExtensionState, setExtensionState} from '../extension';
+import {handleActiveFileDirectoryChange, TS_LANGUAGE_ID, ExtensionState, setExtensionState, activeStatusBarItem} from '../extension';
 import {uriToContainingUri} from '../uritools';
-import {otherTargetsUris} from '../targettools';
-import path = require('path');
+import {packageSourceUris} from '../targettools';
+import { ActiveFile } from '../model/activeFile';
+import {MAX_PKG_SIZE, showDismissableMessage, showErrorMessage, updateMaxPackageSize} from '../userinteraction';
+import * as path from 'path';
 
+const CHANGE_PACKAGE_LIMIT_BUTTON = 'Change max package size';
 const CACHE_SIZE: number = Number(vscode.workspace.getConfiguration('bazel-import').maxCacheSize);
 const cache = new Cache<ActiveKey,ActiveData>(CACHE_SIZE);
 
@@ -22,9 +25,9 @@ function urisFromStrings(strings: string[]): vscode.Uri[] {
 }
 
 async function loadPackageSources(document: vscode.TextDocument) {
-    const currentTargetPair = await otherTargetsUris(uriToContainingUri(document.uri));
+    const currentTargetPair = await packageSourceUris(uriToContainingUri(document.uri));
     if (currentTargetPair === undefined) {
-        vscode.window.showErrorMessage(
+        showErrorMessage(
             `${path.basename(document.uri.fsPath)} failed to open`
         );
         return;
@@ -33,15 +36,13 @@ async function loadPackageSources(document: vscode.TextDocument) {
     const currentTarget = currentTargetPair[1];
     const currBuildURI = currentTargetPair[2];
 
-    setActiveFile({
+    ActiveFile.data = {
         packageSources: packageSources,
         target: currentTarget,
         buildUri: currBuildURI, 
         documentState: document.getText(),
         uri: document.uri
-    });
-
-    validatePackageSize(); 
+    };
 };
 
 export async function updateActiveEditor(editor: vscode.TextEditor | undefined) {
@@ -50,23 +51,21 @@ export async function updateActiveEditor(editor: vscode.TextEditor | undefined) 
     }
     setExtensionState(ExtensionState.inactive); 
 
-    const statusItem = getStatusBarItem();
-    statusItem.show(); 
     const document = editor.document; 
     const fileName = document.fileName.substring(document.fileName.lastIndexOf('/') + 1);
     
     if (document.languageId !== TS_LANGUAGE_ID) {
-        statusItem.text = '$(eye-closed)';
-        statusItem.tooltip = new vscode.MarkdownString('Bazel import deletion only works with `typescript` files'); 
+        activeStatusBarItem.text = '$(eye-closed)';
+        activeStatusBarItem.tooltip = new vscode.MarkdownString('Bazel import deletion only works with `typescript` files'); 
         return;
     }
 
-    statusItem.text = '$(loading~spin)';
-    statusItem.tooltip = `Loading packages for deletion analysis. Current package size is ${vscode.workspace.getConfiguration('bazel-import').maxPackageSize}`; 
+    activeStatusBarItem.text = '$(loading~spin)';
+    activeStatusBarItem.tooltip = `Loading packages for deletion analysis. Current package size is ${vscode.workspace.getConfiguration('bazel-import').maxPackageSize}`; 
 
     const newDir = handleActiveFileDirectoryChange(document);
     if (newDir === undefined) {
-        setDeletionStatus(statusItem, fileName);
+        setDeletionStatus(fileName);
         setExtensionState(ExtensionState.active);
         return; 
     }
@@ -78,13 +77,13 @@ export async function updateActiveEditor(editor: vscode.TextEditor | undefined) 
             const buildUri = value.buildUri; 
             const target = key;
 
-            setActiveFile({
+            ActiveFile.data = {
                 packageSources: packageSources,
                 buildUri: buildUri,
                 target: target.target, 
                 documentState: document.getText(),
                 uri: document.uri,
-            });
+            };
 
             found = true; 
             cache.get(key);
@@ -94,27 +93,49 @@ export async function updateActiveEditor(editor: vscode.TextEditor | undefined) 
     if (!found) {
         await loadPackageSources(document); 
     }
-    else {
-        validatePackageSize();
-    }
 
-    const activeFile = getActiveFile(); // TODO: Extension is probably fast enough, but active file may need to be locked
-    if (activeFile === undefined) {
-        throw Error("Unexpected null active file"); 
-    }
+    validatePackageSize();
+
     cache.set({
-        target: activeFile.target,
+        target: ActiveFile.data.target,
     }, {
-        packageSources: new Set(activeFile.packageSources.map(src => src.toString())), 
-        buildUri: activeFile.buildUri,
+        packageSources: new Set(ActiveFile.data.packageSources.map(src => src.toString())), 
+        buildUri: ActiveFile.data.buildUri,
     });
 
-    setDeletionStatus(statusItem, fileName);
+    setDeletionStatus(fileName);
     setExtensionState(ExtensionState.active);
 }
 
-function setDeletionStatus(statusItem: vscode.StatusBarItem, fileName: string) {
-    statusItem.text = '$(wand)';
-    const enabledStatus = getEnabledStatus();
-    statusItem.tooltip = new vscode.MarkdownString(`Deletions ${enabledStatus} for\n\`${fileName}\``);
+/**
+ * Sets the deletion enabled flag depending on the size of the current package and informs user of status
+ */ 
+function validatePackageSize() {
+    let deletion = 'enabled';
+        
+    if ((ActiveFile.data.packageSources.length ?? MAX_PKG_SIZE + 1) > MAX_PKG_SIZE) {
+        vscode.window
+            .showWarningMessage(
+                `${ActiveFile.data.packageSources.length} file(s) in package. Increase max package size? (current max: ${MAX_PKG_SIZE})`, 
+                CHANGE_PACKAGE_LIMIT_BUTTON
+            ).then((button) => {
+                if (button === CHANGE_PACKAGE_LIMIT_BUTTON) {
+                    updateMaxPackageSize(); 
+                }
+            });
+        deletion = 'disabled';
+    }
+
+    const msg = `${path.basename(ActiveFile.data.uri.fsPath ?? "undefined")} opened with deletion ${deletion}`;
+    showDismissableMessage(msg);
+}
+
+export function packageTooLarge(): boolean {
+    return (ActiveFile.data.packageSources.length ?? MAX_PKG_SIZE + 1) > MAX_PKG_SIZE;
+}
+
+function setDeletionStatus(fileName: string) {
+    activeStatusBarItem.text = '$(wand)';
+    const enabledStatus = packageTooLarge() ? "disabled" : "enabled";
+    activeStatusBarItem.tooltip = new vscode.MarkdownString(`Deletions ${enabledStatus} for\n\`${fileName}\``);
 }

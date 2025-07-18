@@ -49,14 +49,11 @@ async function getSubDirectorySources(uri: vscode.Uri): Promise<vscode.Uri[]> {
         else if (type === vscode.FileType.Directory) {
             subTargets.push(...await getSubDirectorySources(fileURI));
         }
-        if (subTargets.length > vscode.workspace.getConfiguration('bazel-import').maxPackageSize) {
-            return subTargets; 
-        }
     }
     return subTargets; 
 }
 
-export async function otherTargetsUris(uri: vscode.Uri): Promise<[vscode.Uri[], string, vscode.Uri] | undefined> {
+export async function packageSourceUris(uri: vscode.Uri): Promise<[vscode.Uri[], string, vscode.Uri] | undefined> {
     let currentUri = uri; 
     const targetUris: vscode.Uri[] = new Array(); 
     let targetPath; let buildUri; 

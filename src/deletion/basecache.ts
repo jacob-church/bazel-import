@@ -96,7 +96,7 @@ export class Cache<K,V>{
         return createdNode; 
     }
 
-    private trimBack() {
+    private trimBack(): void {
         if (this.tail.prev === undefined) {
             throw Error("unexpected undefined head"); 
         }
@@ -125,7 +125,7 @@ export class Cache<K,V>{
         return targetNode.data; 
     };
 
-    public set(key: K, value: V) {
+    public set(key: K, value: V): void {
         const target = this.nodeMap.get(key); 
         if (target) {
             target.data = value; 
@@ -140,6 +140,10 @@ export class Cache<K,V>{
             this.trimBack(); 
         }
     };
+
+    public has(key: K): boolean {
+        return this.nodeMap.has(key);
+    }
 
     public clear() {
         this.head.next = this.tail;

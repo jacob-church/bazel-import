@@ -1,11 +1,11 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { uriToBuild } from '../deletion/filepathtools';
-import { BUILD_FILE, getTerminal } from '../extension';
+import { BUILD_FILE } from '../extension';
 import { getBuildTargetsFromFile } from '../deletion/removedeps';
-import { otherTargetsUris } from '../targettools';
+import { packageSourceUris } from '../targettools';
 import { uriToContainingUri } from '../uritools';
-import { getBazelDeps } from './bazelutil';
+import { executeCommand, getBazelDeps, handleBuildozerError } from './executil';
 import { showDismissableFileMessage, showDismissableMessage } from '../userinteraction';
 
 /** 
@@ -139,7 +139,7 @@ export const runDeps = async (file: vscode.Uri | undefined) => {
 
             // Get current package sources
             progress.report({message: "getting current package"});
-            const [packageUris,,] = await otherTargetsUris(uriToContainingUri(file)) ?? [undefined, undefined, undefined];
+            const [packageUris,,] = await packageSourceUris(uriToContainingUri(file)) ?? [undefined, undefined, undefined];
             if (packageUris === undefined || token.isCancellationRequested) {
                 cancellationDisposable.dispose();
                 return;
@@ -179,7 +179,7 @@ export const runDeps = async (file: vscode.Uri | undefined) => {
                 return;
             }
 
-            modificationsMade = updateBuildDeps(addDeps, removeDeps, buildTarget);
+            modificationsMade = await updateBuildDeps(addDeps, removeDeps, buildTarget, file);
             showDismissableFileMessage(
                 `Removed ${removeDeps.length} and added ${addDeps.length} dep(s) to ${BUILD_FILE}`,
                 buildUri
@@ -188,20 +188,12 @@ export const runDeps = async (file: vscode.Uri | undefined) => {
             cancellationDisposable.dispose();
 
         } catch (error) {
-            vscode.window.showErrorMessage("Failed to analyze dependencies");
-            console.error(error);
+            handleBuildozerError({ error });
         }
     });
 };
 
-function updateBuildDeps(addDeps: string[], removeDeps: string[], buildTarget: string) {
-    let terminal = getTerminal();
-    if (!terminal) {
-        terminal = vscode.window.createTerminal({
-            hideFromUser: true,
-            isTransient: true,
-        });
-    }
+async function updateBuildDeps(addDeps: string[], removeDeps: string[], buildTarget: string, fileUri: vscode.Uri) {
     const add = addDeps.join(' ').trim();
     const remove = removeDeps.join(' ').trim();
     const buildozerRemove = remove.length > 0 ? `buildozer "remove deps ${remove}" "${buildTarget}"; ` : "";
@@ -210,7 +202,7 @@ function updateBuildDeps(addDeps: string[], removeDeps: string[], buildTarget: s
 
     if (buildozer) {
         console.log(`Executing command: ${buildozer}`);
-        terminal.sendText(buildozer);
+        await executeCommand(buildozer, path.dirname(fileUri.fsPath));
         return true;
     }
     return false;
