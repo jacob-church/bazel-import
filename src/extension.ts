@@ -33,7 +33,7 @@ export async function activate(context: vscode.ExtensionContext) {
         // Save the current instance of file so a change in the active file won't break the analysis
         const savedActiveFile = ActiveFile.data;
         // DELETIONS
-        if (!packageTooLarge() && vscode.workspace.getConfiguration('bazel-import').enableDeletion) {
+        if (savedActiveFile && !packageTooLarge() && vscode.workspace.getConfiguration('bazel-import').enableDeletion) {
             removeDeps(changeEvent, savedActiveFile);
             ActiveFile.data.documentState = changeEvent.document.getText(); 
             extensionState = ExtensionState.ready;

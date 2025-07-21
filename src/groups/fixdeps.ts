@@ -3,7 +3,7 @@ import * as path from 'path';
 import { uriToBuild } from '../util/filepathtools';
 import { BUILD_FILE } from '../extension';
 import { uriToContainingUri } from '../util/uritools';
-import { executeCommand, getBazelDeps, handleBuildozerError } from '../util/exectools';
+import { getBazelDeps, handleBuildozerError, updateBuildDeps } from '../util/exectools';
 import { showDismissableFileMessage, showDismissableMessage } from '../userinteraction';
 import { getBuildTargetsFromPackage, getPackageSourceUris } from '../util/packagetools';
 
@@ -86,18 +86,17 @@ const getFile = async () => {
 };
 
 export const runDepsFix = async (file: vscode.Uri | undefined) => {
-    console.debug("Running deps on", file);
     if (file === undefined) {
         console.error("File not defined");
-        // Probably alert user
+        showDismissableMessage("No file selected");
         return; 
     }
-
+    console.debug("Running deps on", file);
     return vscode.window.withProgress({
-    location: vscode.ProgressLocation.Notification,
-    title: "Bazel import",
-    cancellable: true
-}, async (progress, token) => {
+        location: vscode.ProgressLocation.Notification,
+        title: "Bazel import",
+        cancellable: true
+    }, async (progress, token) => {
         try {
             let modificationsMade = false; 
             const cancellationDisposable = token.onCancellationRequested(() => {
@@ -110,7 +109,8 @@ export const runDepsFix = async (file: vscode.Uri | undefined) => {
             // Get build target
             progress.report({message: "finding build dependencies"});
             const [buildTarget, buildUri] = uriToBuild(file) ?? ["", file];
-            if (buildTarget === "" || token.isCancellationRequested) { // Probably not ideal for ui but it probably won't be there long
+            if (buildTarget === "" || token.isCancellationRequested) {
+                showDismissableMessage("No build target found");
                 cancellationDisposable.dispose();
                 return;
             }
@@ -162,7 +162,7 @@ export const runDepsFix = async (file: vscode.Uri | undefined) => {
                 return;
             }
 
-            modificationsMade = await updateBuildDeps(addDeps, removeDeps, buildTarget, file);
+            modificationsMade = await updateBuildDeps({ addDeps, removeDeps, buildTarget, fileUri: file });
             showDismissableFileMessage(
                 `Removed ${removeDeps.length} and added ${addDeps.length} dep(s) to ${BUILD_FILE}`,
                 buildUri
@@ -192,27 +192,3 @@ async function getDepsFromBuild(buildTarget: string, directory: string): Promise
 
     return currentDeps;
 }
-
-// TODO: Remove dup
-async function updateBuildDeps(
-    addDeps: string[], 
-    removeDeps: string[], 
-    buildTarget: string, 
-    fileUri: vscode.Uri
-) {
-    const add = addDeps.join(' ').trim();
-    const remove = removeDeps.join(' ').trim();
-    const buildozerRemove = remove.length > 0 ? `buildozer "remove deps ${remove}" "${buildTarget}"; ` : "";
-    const buildozerAdd = add.length > 0 ? `buildozer "add deps ${add}" "${buildTarget}"` : "";
-    const buildozer = buildozerRemove.concat(buildozerAdd);
-
-    if (buildozer) {
-        console.log(`Executing command: ${buildozer}`);
-        await executeCommand(buildozer, path.dirname(fileUri.fsPath));
-        return true;
-    }
-    return false;
-}
-
-
-

@@ -10,3 +10,7 @@ export function uriToContainingUri(uri: vscode.Uri): vscode.Uri {
     parts.pop();
     return vscode.Uri.joinPath(vscode.Uri.file('/'), ...parts);
 }
+
+export function uriEquals(uri1: vscode.Uri, uri2: vscode.Uri): boolean {
+    return (uri1.toString() === uri2.toString());
+}

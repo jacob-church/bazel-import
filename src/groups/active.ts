@@ -11,6 +11,7 @@ import { getPackageSourceUris, packageTooLarge } from '../util/packagetools';
 const CHANGE_PACKAGE_LIMIT_BUTTON = 'Change max package size';
 const CACHE_SIZE: number = Number(vscode.workspace.getConfiguration('bazel-import').maxCacheSize);
 const cache = new Cache<ActiveKey,ActiveData>(CACHE_SIZE);
+const DELETION_ENABLED = vscode.workspace.getConfiguration('bazel-import').enableDeletion;
 
 export interface ActiveKey {
     target: string;
@@ -22,8 +23,8 @@ export interface ActiveData {
 }
 
 export async function updateActiveEditor(editor: vscode.TextEditor | undefined) {
-    if (editor === undefined || !vscode.workspace.getConfiguration('bazel-import').enableDeletion) {
-        return; 
+    if (editor === undefined || !DELETION_ENABLED) {
+        return;
     }
     setExtensionState(ExtensionState.inactive); 
 

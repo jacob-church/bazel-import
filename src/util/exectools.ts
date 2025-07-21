@@ -1,6 +1,7 @@
 import { exec, ExecException } from 'child_process';
 import * as vscode from 'vscode';
 import {showDismissableFileMessage, showDismissableMessage, showErrorMessage} from '../userinteraction';
+import * as path from 'path';
 
 export async function getBazelDeps(target: string, cwd: string, excludedTargets?: string[]): Promise<string> {
     let command = `bazel query "labels(deps, ${target})"`;
@@ -25,7 +26,6 @@ export async function executeCommand(command: string, cwd: string): Promise<stri
     return new Promise((resolve, reject) => {
         exec(command, {cwd: cwd}, (error, stdout, stderr) => {
             if (error) {
-                console.debug(error, stderr);
                 return reject({
                     "error": error,
                     "stderr": stderr
@@ -76,4 +76,21 @@ function isRejection(error: unknown): error is Rejection {
     'stderr' in error &&
     typeof (error as Rejection).stderr === 'string'
   );
+}// TODO: Remove dup
+
+export async function updateBuildDeps(
+    { addDeps = [], removeDeps = [], buildTarget, fileUri }: { addDeps?: string[]; removeDeps?: string[]; buildTarget: string; fileUri: vscode.Uri; }) {
+    const add = addDeps.join(' ').trim();
+    const remove = removeDeps.join(' ').trim();
+    const buildozerRemove = remove.length > 0 ? `buildozer "remove deps ${remove}" "${buildTarget}"; ` : "";
+    const buildozerAdd = add.length > 0 ? `buildozer "add deps ${add}" "${buildTarget}"` : "";
+    const buildozer = buildozerRemove.concat(buildozerAdd);
+
+    if (buildozer) {
+        console.log(`Executing command: ${buildozer}`);
+        await executeCommand(buildozer, path.dirname(fileUri.fsPath));
+        return true;
+    }
+    return false;
 }
+
