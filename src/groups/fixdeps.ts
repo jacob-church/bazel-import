@@ -1,15 +1,13 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { uriToBuild } from '../deletion/filepathtools';
+import { uriToBuild } from '../util/filepathtools';
 import { BUILD_FILE } from '../extension';
-import { getBuildTargetsFromFile } from '../deletion/removedeps';
-import { getPackageSourceUris } from '../targettools';
-import { uriToContainingUri } from '../uritools';
-import { executeCommand, getBazelDeps, handleBuildozerError } from './executil';
+import { uriToContainingUri } from '../util/uritools';
+import { executeCommand, getBazelDeps, handleBuildozerError } from '../util/exectools';
 import { showDismissableFileMessage, showDismissableMessage } from '../userinteraction';
+import { getBuildTargetsFromPackage, getPackageSourceUris } from '../util/packagetools';
 
 /** 
- * Idea: add status bar item, shortcut, or icon => onclick select target file 🗹
  * 1. Finds the build target for the file -------------------------------- 🗹
  * 2. Queries the current target list => set ----------------------------- 🗹
  * 3. Finds the package using the active editor workflow ----------------- 🗹
@@ -20,11 +18,12 @@ import { showDismissableFileMessage, showDismissableMessage } from '../userinter
 
 const CURRENT_FILE: string = '$(file) Current file';
 const SELECT_FILE: string = '$(file-directory) Select a file';
+const EXCLUDED_DEPENDENCIES = vscode.workspace.getConfiguration('bazel-import').excludeDependencies ?? undefined;
 
 
 export const statusBarOptions = async (file?: vscode.Uri) => {
     if (file) {
-        runDeps(file);
+        runDepsFix(file);
         return;
     }
 
@@ -51,11 +50,11 @@ export const statusBarOptions = async (file?: vscode.Uri) => {
 
     switch (selection.label) {
         case CURRENT_FILE:
-            runDeps(vscode.window.activeTextEditor?.document.uri);
+            runDepsFix(vscode.window.activeTextEditor?.document.uri);
             break;
         case SELECT_FILE:
             const file = await getFile();
-            runDeps(file);
+            runDepsFix(file);
             break;
         default:
             vscode.window.showWarningMessage("Something went wrong");
@@ -86,7 +85,7 @@ const getFile = async () => {
     return (fileUri && fileUri.length > 0) ? fileUri[0] : undefined; 
 };
 
-export const runDeps = async (file: vscode.Uri | undefined) => {
+export const runDepsFix = async (file: vscode.Uri | undefined) => {
     console.debug("Running deps on", file);
     if (file === undefined) {
         console.error("File not defined");
@@ -118,19 +117,11 @@ export const runDeps = async (file: vscode.Uri | undefined) => {
             console.debug("Target", buildTarget, "Uri", buildUri); 
             
             // Get current bazel deps
-            const excludedDependencies = vscode.workspace.getConfiguration('bazel-import').excludeDependencies ?? undefined;
-
-            const depsString: string = await getBazelDeps(
-                buildTarget, 
-                path.dirname(file.fsPath), 
-                excludedDependencies
+            const currentDeps: Set<string> = await getDepsFromBuild(
+                buildTarget,
+                path.dirname(file.fsPath),
             );
-            console.debug("Deps string", depsString);
-            const depsArray = depsString.split('\n').filter((dep) => dep.indexOf(':') >= 0).map(dep => {
-                const pkgIdx = dep.indexOf(':');
-                return dep.slice(0, pkgIdx);
-            });
-            const currentDeps: Set<string> = new Set(depsArray); 
+
             console.debug("Build deps", currentDeps);
             if (token.isCancellationRequested) {
                 cancellationDisposable.dispose();
@@ -146,7 +137,8 @@ export const runDeps = async (file: vscode.Uri | undefined) => {
             }
 
             progress.report({message: `analyzing dependencies for ${packageUris.length} source file(s)`});
-            const dependencyTargets = await dependenciesFromFiles(packageUris);
+            const dependencyTargets = new Set(await getBuildTargetsFromPackage(packageUris));
+            
             // Needed so it doesn't add self dependency
             dependencyTargets.delete(buildTarget);
             console.debug("Dependencies", dependencyTargets);
@@ -177,14 +169,37 @@ export const runDeps = async (file: vscode.Uri | undefined) => {
             );
             
             cancellationDisposable.dispose();
-
         } catch (error) {
             handleBuildozerError({ error });
         }
     });
 };
 
-async function updateBuildDeps(addDeps: string[], removeDeps: string[], buildTarget: string, fileUri: vscode.Uri) {
+async function getDepsFromBuild(buildTarget: string, directory: string): Promise<Set<string>> {
+    const depsString: string = await getBazelDeps(
+        buildTarget, 
+        directory, 
+        EXCLUDED_DEPENDENCIES
+    );
+
+    console.debug("Deps string", depsString);
+    const depsArray = depsString.split('\n').filter((dep) => dep.indexOf(':') >= 0).map(dep => {
+        const pkgIdx = dep.indexOf(':');
+        return dep.slice(0, pkgIdx);
+    });
+    const currentDeps: Set<string> = new Set(depsArray); 
+    console.debug("Build deps", currentDeps);
+
+    return currentDeps;
+}
+
+// TODO: Remove dup
+async function updateBuildDeps(
+    addDeps: string[], 
+    removeDeps: string[], 
+    buildTarget: string, 
+    fileUri: vscode.Uri
+) {
     const add = addDeps.join(' ').trim();
     const remove = removeDeps.join(' ').trim();
     const buildozerRemove = remove.length > 0 ? `buildozer "remove deps ${remove}" "${buildTarget}"; ` : "";
@@ -199,14 +214,5 @@ async function updateBuildDeps(addDeps: string[], removeDeps: string[], buildTar
     return false;
 }
 
-async function dependenciesFromFiles(packageUris: vscode.Uri[]) {
-    const dependencyTargets = new Set<string>();
-    await Promise.all(packageUris.map(async sourceUri => {
-        const targets = await getBuildTargetsFromFile(sourceUri); 
-        for (const target of targets) {
-            dependencyTargets.add(target);
-        }
-    }));
-    return dependencyTargets;
-}
+
 

@@ -1,28 +1,11 @@
 import * as vscode from 'vscode';
 import {uriToContainingUri} from './uritools';
+import {filePathToTargetPath} from './targettools';
+import {ActiveFile} from '../model/activeFile';
+import {MAX_PKG_SIZE} from '../userinteraction';
+import {getBuildTargetsFromFile} from './filetools';
 
 const BUILD_FILE_NAME = vscode.workspace.getConfiguration('bazel-import').buildFile;
-const TARGET_PREFIXES = vscode.workspace.getConfiguration('bazel-import').targetPrefixes;
-
-/**
- * Recursively search up the file tree to the nearest BUILD.bazel file
- * and return the build target path
- */
-export async function uriToBuildTarget(uri: vscode.Uri): Promise<[string, vscode.Uri] | undefined> {
-    let currentUri = uri;
-    while (currentUri.fsPath !== '/') {
-        const files = await vscode.workspace.fs.readDirectory(currentUri);
-        if (files.some(([name]) => name === BUILD_FILE_NAME)) {
-            const targetPath = filePathToTargetPath(currentUri.fsPath);
-            const buildUri = vscode.Uri.joinPath(currentUri, BUILD_FILE_NAME);
-            if (targetPath) {
-                return [targetPath, buildUri];
-            }
-            return undefined;
-        }
-        currentUri = uriToContainingUri(currentUri);
-    }
-}
 
 /** 
  * Recursively search down the file tree until a package (i.e., BUILD.bazel file)
@@ -52,6 +35,7 @@ async function getSubDirectorySources(uri: vscode.Uri): Promise<vscode.Uri[]> {
     }
     return subTargets; 
 }
+
 
 export async function getPackageSourceUris(uri: vscode.Uri): Promise<[vscode.Uri[], string, vscode.Uri] | undefined> {
     let currentUri = uri; 
@@ -92,27 +76,10 @@ export async function getPackageSourceUris(uri: vscode.Uri): Promise<[vscode.Uri
     }
 }
 
+export async function getBuildTargetsFromPackage(packageSources: vscode.Uri[]) {
+    return (await Promise.all(packageSources.map(async uri => getBuildTargetsFromFile(uri!)))).flat();
+} 
 
-/**
- * @param path e.g. /home/<dev>/lucid/main/<target-prefix>/blah/blah/blah
- *      <target-prefix> values can be defined in bazel-import.targetPrefixes
- * @returns e.g. //<target-prefix>/blah/blah/blah
- */
-export function filePathToTargetPath(path: string): string | undefined {
-    let index = -1;
-    if (typeof TARGET_PREFIXES === 'string') {
-        index = path.indexOf(TARGET_PREFIXES);
-    } else if (TARGET_PREFIXES !== null) {
-        for (let i = 0; i < TARGET_PREFIXES.length; i++) {
-            const newIndex = path.indexOf(TARGET_PREFIXES[i]);
-            if (newIndex !== -1) {
-                index = newIndex;
-                break;
-            }
-        }
-    }
-    if (index === -1) {
-        return undefined;
-    }
-    return `/${path.substring(index)}`;
+export function packageTooLarge(): boolean {
+    return (ActiveFile.data.packageSources.length ?? MAX_PKG_SIZE + 1) > MAX_PKG_SIZE;
 }

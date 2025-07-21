@@ -1,7 +1,7 @@
 import * as vscode from 'vscode'; 
 import * as ts from 'typescript';
 import * as path from 'path';
-import { filePathToTargetPath } from '../targettools';
+import { filePathToTargetPath } from './targettools';
 import { Cache } from './basecache';
 import { showErrorMessage } from '../userinteraction';
 
@@ -108,3 +108,23 @@ export function uriToBuild(fileUri: vscode.Uri): [string, vscode.Uri] | undefine
 
     return [target, targetUri]; 
 }
+
+export const getBuildTargetFromFilePath = (importPath: string, currentFile: vscode.Uri):  [string, vscode.Uri] => {
+    let fileUri: vscode.Uri | undefined;
+    if (importPath.startsWith('.')) {
+        importPath = path.resolve(path.dirname(currentFile.fsPath), importPath) + ".ts";
+        fileUri = vscode.Uri.file(importPath); 
+    }
+    else {
+        fileUri = resolveSpecifierToUri(currentFile, importPath);
+    }
+
+    if (!fileUri) {
+        throw new Error("File not found");
+    }
+    const target = uriToBuild(fileUri);
+    if (!target) {
+        throw new Error("Target not found");
+    }
+    return target;
+};
