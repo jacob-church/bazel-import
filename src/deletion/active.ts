@@ -1,11 +1,12 @@
 import * as vscode from 'vscode';
 import { Cache } from './basecache';
-import {handleActiveFileDirectoryChange, TS_LANGUAGE_ID, ExtensionState, setExtensionState, activeStatusBarItem} from '../extension';
+import {handleActiveFileDirectoryChange, TS_LANGUAGE_ID, ExtensionState, setExtensionState, updateStatusBar} from '../extension';
 import {uriToContainingUri} from '../uritools';
 import {getPackageSourceUris} from '../targettools';
 import { ActiveFile } from '../model/activeFile';
 import {MAX_PKG_SIZE, showDismissableMessage, showErrorMessage, updateMaxPackageSize} from '../userinteraction';
 import * as path from 'path';
+import { uriToBuild } from './filepathtools';
 
 const CHANGE_PACKAGE_LIMIT_BUTTON = 'Change max package size';
 const CACHE_SIZE: number = Number(vscode.workspace.getConfiguration('bazel-import').maxCacheSize);
@@ -55,13 +56,26 @@ export async function updateActiveEditor(editor: vscode.TextEditor | undefined) 
     const fileName = document.fileName.substring(document.fileName.lastIndexOf('/') + 1);
     
     if (document.languageId !== TS_LANGUAGE_ID) {
-        activeStatusBarItem.text = '$(eye-closed)';
-        activeStatusBarItem.tooltip = new vscode.MarkdownString('Bazel import deletion only works with `typescript` files'); 
+        updateStatusBar(
+            new vscode.MarkdownString('Bazel import deletion only works with `typescript` files'),
+            '$(eye-closed)'
+        );
+        return;
+    }
+    
+    if (uriToBuild(document.uri) === undefined) {
+        updateStatusBar(
+            'File not part of bazel package',
+            '$(eye-closed)'
+        );
         return;
     }
 
-    activeStatusBarItem.text = '$(loading~spin)';
-    activeStatusBarItem.tooltip = `Loading packages for deletion analysis. Current package size is ${vscode.workspace.getConfiguration('bazel-import').maxPackageSize}`; 
+
+    updateStatusBar(
+        `Loading packages for deletion analysis. Current package size is ${vscode.workspace.getConfiguration('bazel-import').maxPackageSize}`,
+        '$(loading~spin)'
+    );
 
     const newDir = handleActiveFileDirectoryChange(document);
     if (newDir === undefined) {
@@ -135,7 +149,9 @@ export function packageTooLarge(): boolean {
 }
 
 function setDeletionStatus(fileName: string) {
-    activeStatusBarItem.text = '$(wand)';
     const enabledStatus = packageTooLarge() ? "disabled" : "enabled";
-    activeStatusBarItem.tooltip = new vscode.MarkdownString(`Deletions ${enabledStatus} for\n\`${fileName}\``);
+    updateStatusBar(
+        new vscode.MarkdownString(`Deletions ${enabledStatus} for\n\`${fileName}\``),
+        '$(wand)'
+    );
 }

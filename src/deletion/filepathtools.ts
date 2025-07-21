@@ -92,8 +92,8 @@ function getConfiguration(configPath: string): ts.ParsedCommandLine | undefined 
 
 const BUILD_FILE = vscode.workspace.getConfiguration('bazel-import').buildFile;
 
-export function uriToBuild(uri: vscode.Uri): [string, vscode.Uri] | undefined {
-    const configPath = ts.findConfigFile(uri.fsPath, ts.sys.fileExists, BUILD_FILE);
+export function uriToBuild(fileUri: vscode.Uri): [string, vscode.Uri] | undefined {
+    const configPath = ts.findConfigFile(path.dirname(fileUri.fsPath), ts.sys.fileExists, BUILD_FILE);
     if (!configPath) {
         return undefined;
     }

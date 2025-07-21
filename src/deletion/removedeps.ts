@@ -1,8 +1,6 @@
 import * as vscode from 'vscode';
-import { urisFromTextChanges } from '../importparse';
 import { uriToBuild, resolveSpecifierToUri } from './filepathtools';
 import * as path from 'path';
-import { showErrorMessage } from '../userinteraction';
 
 
 const EXTERNAL_TARGETS = vscode.workspace.getConfiguration('bazel-import').externalTargets;

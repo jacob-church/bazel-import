@@ -204,9 +204,6 @@ async function dependenciesFromFiles(packageUris: vscode.Uri[]) {
     await Promise.all(packageUris.map(async sourceUri => {
         const targets = await getBuildTargetsFromFile(sourceUri); 
         for (const target of targets) {
-            if (target === undefined) {
-                break;
-            }
             dependencyTargets.add(target);
         }
     }));
