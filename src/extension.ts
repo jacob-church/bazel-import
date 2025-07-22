@@ -36,7 +36,6 @@ export async function activate(context: vscode.ExtensionContext) {
         if (savedActiveFile && !packageTooLarge() && vscode.workspace.getConfiguration('bazel-import').enableDeletion) {
             removeDeps(changeEvent, savedActiveFile);
             ActiveFile.data.documentState = changeEvent.document.getText(); 
-            extensionState = ExtensionState.ready;
         }
         addDeps(changeEvent, savedActiveFile);
     });

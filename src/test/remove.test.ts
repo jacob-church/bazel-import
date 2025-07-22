@@ -1,11 +1,10 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { ExtensionState, getExtensionState, setTerminal } from '../extension';
-import { MockData, MockTerminal } from './__mock__/terminal';
-import { cleanupGraceful, cleanupWorkspace, setupWorkspace } from './workspacesetup';
-import *as _fs_ from 'fs';
-import {executeCommand} from '../analysis/bazelutil';
+import { extensionState, ExtensionState } from '../extension';
+import { cleanupGraceful, cleanupWorkspace, setupWorkspace } from './util/workspacesetup';
+import { setupStub, StubData, StubDozer, teardownStub } from './util/stubtool';
+import { updateBuildDeps } from '../util/exectools';
 
 let testWorkspaceFolder: string;
 
@@ -16,7 +15,7 @@ process.on('exit', (code) => cleanupGraceful(code, testWorkspaceFolder));
 async function awaitState(state: ExtensionState) {
     const waiter = new Promise<void>(resolve => {
         let interval = setInterval(() => {
-                if (getExtensionState() === state) {
+                if (extensionState === state) {
                     clearInterval(interval);
                     resolve();
                 }
@@ -25,30 +24,29 @@ async function awaitState(state: ExtensionState) {
     await waiter; 
 }
 
-
-
-suite.only("Deletion", () => {
+suite.only("Remove Deps", () => {
     // Create a temporary workspace for tests
     let package1: string;
     let package2: string;
 
-    const testTerminal: vscode.Terminal = new MockTerminal();
-
     suiteSetup(async () => {
         ({testWorkspaceFolder, package1, package2} = await setupWorkspace());
+        setupStub();
     });
 
     setup(async () => {
-        // Mock terminal
-        testTerminal.sendText("");
-        setTerminal(testTerminal); 
+        updateBuildDeps({
+            buildTarget: StubData.clear,
+            fileUri: vscode.Uri.parse(testWorkspaceFolder)
+        });
     });
 
     teardown(async () => {
-        testTerminal.sendText("");
-        setTerminal(testTerminal);
+        updateBuildDeps({
+            buildTarget: StubData.clear,
+            fileUri: vscode.Uri.parse(testWorkspaceFolder)
+        });
     });
-
 
     // One import on each 
     // Remove all imports --> test that it removes import from all (check bazel build for empty/no deps)
@@ -68,13 +66,13 @@ suite.only("Deletion", () => {
 
         await awaitState(ExtensionState.ready);
 
-        let removeOne: MockData = JSON.parse(testTerminal.name); 
+        let buildozer: StubDozer = StubData.mostRecent(); 
 
-        assert(removeOne.data.remove.includes("//ts/src/package2"));
-        assert(removeOne.data.raw.includes("//ts/src/package1")); // Target is correct
-        assert(!removeOne.data.raw.includes("//ts/src/package3"));
-        assert(!removeOne.data.raw.includes("//ts/src/package3/package4"));
-        assert(removeOne.data.raw.includes("remove deps")); 
+        assert(buildozer.remove.includes("//ts/src/package2"));
+        assert(buildozer.uri.includes("ts/src/package1")); // Target is correct
+        assert.strictEqual(buildozer.remove.length, 1);
+        assert.strictEqual(buildozer.add.length, 0); 
+        assert.strictEqual(StubData.count(), 1);
 
         await editor.edit(editBuilder => {
             const range = new vscode.Range(0, 0, 2, 0);
@@ -83,13 +81,14 @@ suite.only("Deletion", () => {
 
         await awaitState(ExtensionState.ready);
 
-        let removeRemaining: MockData = JSON.parse(testTerminal.name);
+        buildozer = StubData.mostRecent();
         
-        assert(!removeRemaining.data.raw.includes("//ts/src/package2"));
-        assert(removeRemaining.data.raw.includes("//ts/src/package1"));
-        assert(removeRemaining.data.remove.includes("//ts/src/package3"));
-        assert(removeRemaining.data.remove.includes("//ts/src/package3/package4"));
-        assert(removeRemaining.data.raw.includes("remove deps")); 
+        assert(buildozer.uri.includes("ts/src/package1"));
+        assert(buildozer.remove.includes("//ts/src/package3"));
+        assert(buildozer.remove.includes("//ts/src/package3/package4"));
+        assert.strictEqual(buildozer.remove.length, 2);
+        assert.strictEqual(buildozer.add.length, 0); 
+        assert.strictEqual(StubData.count(), 2);
         await editor.document.save();
     });
 
@@ -108,14 +107,17 @@ suite.only("Deletion", () => {
 
         await awaitState(ExtensionState.ready); 
 
-        let removedDependences: MockData = JSON.parse(testTerminal.name);
+        let buildozer: StubDozer = StubData.mostRecent();
 
-        assert.strictEqual(removedDependences.data.raw, "");
+        assert.strictEqual(buildozer.add.length, 0); 
+        assert.strictEqual(buildozer.remove.length, 0); 
+        assert.strictEqual(buildozer.uri, testUri.toString()); 
+        assert.strictEqual(StubData.count(), 1);
         await editor.document.save();
- 
     });
 
     suiteTeardown( async () => {
+        teardownStub();
         await vscode.workspace.saveAll();
         console.log("Deleting directory", testWorkspaceFolder);
         await vscode.commands.executeCommand('workbench.action.closeAllEditors');
@@ -123,11 +125,3 @@ suite.only("Deletion", () => {
         await cleanupWorkspace(testWorkspaceFolder);
     });
 });
-
-function saveAll() {
-    for (const tabGroup of vscode.window.tabGroups.all) {
-        for (const tab of tabGroup.tabs) {
-            console.log(tab.isDirty);
-        }
-    }
-}

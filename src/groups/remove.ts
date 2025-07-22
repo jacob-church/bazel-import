@@ -1,14 +1,11 @@
 import * as vscode from 'vscode';
-import {getBuildTargetsFromFile} from '../util/filetools';
 import {showDismissableFileMessage, showDismissableMessage} from '../userinteraction';
-import * as path from 'path';
-import {executeCommand, handleBuildozerError} from '../util/exectools';
 import {ActiveFile, ActiveFileData} from '../model/activeFile';
 import {getBuildTargetsFromDeletions} from '../util/eventtools';
-import {BUILD_FILE, ExtensionState, extensionState, setExtensionState} from '../extension';
+import {BUILD_FILE, ExtensionState, setExtensionState} from '../extension';
 import { getBuildTargetsFromPackage } from '../util/packagetools';
 import { uriEquals } from '../util/uritools';
-import { updateBuildDeps } from '../util/exectools';
+import { updateBuildDeps, handleBuildozerError } from '../util/exectools';
 
 // DELETION
 export async function removeDeps(changeEvent: vscode.TextDocumentChangeEvent, changedFile: ActiveFileData) {
@@ -54,7 +51,8 @@ export async function removeDeps(changeEvent: vscode.TextDocumentChangeEvent, ch
             msgFail: "Failed to remove deps", 
             uri: changedFile.buildUri
         });
-    }    
+    }
+    setExtensionState(ExtensionState.ready);   
 }
 
 function validateDeletions(remainingDependencies: string[], deletedImports: Set<string>): string[] {

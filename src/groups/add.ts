@@ -1,13 +1,11 @@
 import * as vscode from 'vscode';
 import {showDismissableFileMessage} from '../userinteraction';
-import * as path from 'path';
-import {executeCommand, handleBuildozerError} from '../util/exectools';
+import {handleBuildozerError, updateBuildDeps} from '../util/exectools';
 import {ActiveFileData} from '../model/activeFile';
 import {uriToBuild} from '../util/filepathtools';
 import {getBuildTargetsFromAdditions} from '../util/eventtools';
 import {BUILD_FILE} from '../extension';
 import { uriEquals } from '../util/uritools';
-import { updateBuildDeps } from '../util/exectools';
 
 // ADDITION
 export async function addDeps(changeEvent: vscode.TextDocumentChangeEvent, changedFile: ActiveFileData | undefined) {    
