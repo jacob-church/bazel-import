@@ -1,7 +1,7 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { extensionState, ExtensionState } from '../extension';
+import { ExtensionState, getExtensionState } from '../extension';
 import { cleanupGraceful, cleanupWorkspace, setupWorkspace } from './util/workspacesetup';
 import { setupStub, StubData, StubDozer, teardownStub } from './util/stubtool';
 import { updateBuildDeps } from '../util/exectools';
@@ -15,7 +15,7 @@ process.on('exit', (code) => cleanupGraceful(code, testWorkspaceFolder));
 async function awaitState(state: ExtensionState) {
     const waiter = new Promise<void>(resolve => {
         let interval = setInterval(() => {
-                if (extensionState === state) {
+                if (getExtensionState() === state) {
                     clearInterval(interval);
                     resolve();
                 }
@@ -68,8 +68,8 @@ suite.only("Remove Deps", () => {
 
         let buildozer: StubDozer = StubData.mostRecent(); 
 
+        assert.strictEqual(buildozer.target, "//ts/src/package1");
         assert(buildozer.remove.includes("//ts/src/package2"));
-        assert(buildozer.uri.includes("ts/src/package1")); // Target is correct
         assert.strictEqual(buildozer.remove.length, 1);
         assert.strictEqual(buildozer.add.length, 0); 
         assert.strictEqual(StubData.count(), 1);
@@ -83,7 +83,7 @@ suite.only("Remove Deps", () => {
 
         buildozer = StubData.mostRecent();
         
-        assert(buildozer.uri.includes("ts/src/package1"));
+        assert.strictEqual(buildozer.target,"//ts/src/package1");
         assert(buildozer.remove.includes("//ts/src/package3"));
         assert(buildozer.remove.includes("//ts/src/package3/package4"));
         assert.strictEqual(buildozer.remove.length, 2);
@@ -109,9 +109,9 @@ suite.only("Remove Deps", () => {
 
         let buildozer: StubDozer = StubData.mostRecent();
 
-        assert.strictEqual(buildozer.add.length, 0); 
+        assert.strictEqual(buildozer.target, "//ts/src/package2"); 
         assert.strictEqual(buildozer.remove.length, 0); 
-        assert.strictEqual(buildozer.uri, testUri.toString()); 
+        assert.strictEqual(buildozer.add.length, 0); 
         assert.strictEqual(StubData.count(), 1);
         await editor.document.save();
     });

@@ -26,18 +26,18 @@ async function replacer({ addDeps, removeDeps, buildTarget, fileUri }: {
     buildTarget: string;
     fileUri: vscode.Uri;
 }) {
-        if (buildTarget === StubData.clear) {
-            StubData.reset();
-            return false;
-        }
-        else {
-            StubData.addCall({
-                'add': addDeps ?? [],
-                'remove': removeDeps ?? [],
-                'uri': fileUri.toString()
-            });
-            return true;
-        }
+    if (buildTarget === StubData.clear) {
+        StubData.reset();
+        return false;
+    }
+    else {
+        StubData.addCall({
+            'add': addDeps ?? [],
+            'remove': removeDeps ?? [],
+            'target': buildTarget
+        });
+        return true;
+    }
 };
 
 let originalDescriptor: PropertyDescriptor | undefined;
@@ -75,7 +75,7 @@ export class StubData {
 }
 
 export type StubDozer = {
-    uri: string,
+    target: string,
     add: string[],
     remove: string[]
 };

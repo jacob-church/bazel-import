@@ -58,7 +58,11 @@ export enum ExtensionState {
  * For internal testing and monitoring
  * State that monitors the resolution of extension handlers
  */
-export let extensionState: ExtensionState = ExtensionState.inactive;
+let extensionState: ExtensionState = ExtensionState.inactive;
+
+export function getExtensionState(): ExtensionState {
+    return extensionState; 
+}
 
 /**
  * For testing and monitoring

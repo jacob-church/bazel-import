@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import { Cache } from '../util/basecache';
+import { Cache } from '../model/basecache';
 import {TS_LANGUAGE_ID, ExtensionState, setExtensionState, updateStatusBar} from '../extension';
-import {uriToContainingUri} from '../util/uritools';
+import {uriEquals, uriToContainingUri} from '../util/uritools';
 import { ActiveFile } from '../model/activeFile';
 import {MAX_PKG_SIZE, showDismissableMessage, showErrorMessage, updateMaxPackageSize} from '../userinteraction';
 import * as path from 'path';
@@ -99,17 +99,17 @@ export async function updateActiveEditor(editor: vscode.TextEditor | undefined) 
 /** 
  * Checks if the new document is in the old document's directory (i.e., does not need package update)
 */
-function handleActiveFileDirectoryChange(document: vscode.TextDocument) {
+function handleActiveFileDirectoryChange(newDocument: vscode.TextDocument) {
     let oldDir = undefined; 
     if (ActiveFile.data) {
         oldDir = uriToContainingUri(ActiveFile.data.buildUri);
     }
 
-    let newDir = uriToContainingUri(document.uri); 
-    if (newDir.toString() === oldDir?.toString()) {
+    let newDir = uriToContainingUri(newDocument.uri); 
+    if (uriEquals(oldDir, newDir)) {
         console.log("No need to reload the build packages");
-        ActiveFile.data.uri = document.uri;
-        ActiveFile.data.documentState = document.getText(); 
+        ActiveFile.data.uri = newDocument.uri;
+        ActiveFile.data.documentState = newDocument.getText(); 
         return undefined;
     }
     return newDir; 
@@ -119,7 +119,7 @@ function handleActiveFileDirectoryChange(document: vscode.TextDocument) {
  * Sets the deletion enabled flag depending on the size of the current package and informs user of status
  */ 
 function validatePackageSize() {
-    let deletion = 'enabled';
+    let enabledStatus = 'enabled';
         
     if (packageTooLarge()) {
         vscode.window
@@ -131,10 +131,10 @@ function validatePackageSize() {
                     updateMaxPackageSize(); 
                 }
             });
-        deletion = 'disabled';
+        enabledStatus = 'disabled';
     }
 
-    const msg = `${path.basename(ActiveFile.data.uri.fsPath ?? "undefined")} opened with deletion ${deletion}`;
+    const msg = `${path.basename(ActiveFile.data.uri.fsPath ?? "undefined")} opened with deletion ${enabledStatus}`;
     showDismissableMessage(msg);
 }
 

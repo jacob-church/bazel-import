@@ -1,4 +1,4 @@
-import { Cache } from "../util/basecache";
+import { Cache } from "../model/basecache";
 import * as assert from 'assert';
 
 const testCache: Cache<string,number> = new Cache<string,number>(3);

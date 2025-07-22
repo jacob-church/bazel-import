@@ -117,8 +117,7 @@ export async function cleanupWorkspace(testWorkspaceFolder: string) {
     // Clean up the temporary directory
     if (fs.existsSync(testWorkspaceFolder)) {
         try {
-            const folderUri = vscode.Uri.parse(testWorkspaceFolder);
-            await vscode.workspace.fs.delete(folderUri, {recursive: true, useTrash: false});
+            fs.rmSync(testWorkspaceFolder, {recursive: true, force: true});
             console.log(`Workspace closed ${testWorkspaceFolder}`);
         } catch (error) {
             console.error(`Failed to delete ${testWorkspaceFolder}`);

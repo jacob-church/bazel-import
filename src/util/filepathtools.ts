@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as ts from 'typescript';
 import * as path from 'path';
 import { filePathToTargetPath } from './targettools';
-import { Cache } from './basecache';
+import { Cache } from '../model/basecache';
 import { showErrorMessage } from '../userinteraction';
 
 const tsExtension = vscode.extensions.getExtension('vscode.typescript-language-features');

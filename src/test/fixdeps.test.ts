@@ -59,8 +59,7 @@ suite.only("Fix Deps", () => {
 
         const buildozer: StubDozer = StubData.mostRecent();
         
-        assert(buildozer);
-        assert(buildozer.uri.includes("/ts/src/package2")); // Target
+        assert.strictEqual(buildozer.target, "//ts/src/package2"); 
         assert(buildozer.remove.includes("//ts/src/package3/package4"));
         assert.strictEqual(buildozer.add.length, 0);
         assert.strictEqual(buildozer.remove.length, 1);
@@ -76,9 +75,9 @@ suite.only("Fix Deps", () => {
 
         const buildozer: StubDozer = StubData.mostRecent();
 
+        assert.strictEqual(buildozer.target, "//ts/src/package3/package4");
         assert.strictEqual(buildozer.remove.length, 0);
         assert(buildozer.add.includes("//ts/src/package3"));
-        assert.strictEqual(buildozer.uri, documentUri.toString());
         assert.strictEqual(buildozer.add.length, 1);
     });
 
@@ -96,12 +95,12 @@ suite.only("Fix Deps", () => {
 
         const buildozer: StubDozer = StubData.mostRecent();
 
+        assert.strictEqual(buildozer.target, "//ts/src/package1");
         assert(buildozer.remove.includes("//ts/src/package3"));
         assert(buildozer.remove.includes("//ts/src/package2"));
         assert.strictEqual(buildozer.remove.length, 2);
         assert(buildozer.add.includes("//ts/src/package5"));
         assert.strictEqual(buildozer.add.length, 1);
-        assert(buildozer.uri.includes("/ts/src/package1"));
     });
 
     suiteTeardown(async () => {
