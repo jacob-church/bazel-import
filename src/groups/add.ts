@@ -27,6 +27,7 @@ export async function addDeps(changeEvent: vscode.TextDocumentChangeEvent, chang
 
     // Step 2: Get the build targets from the added imports
     const targets = getBuildTargetsFromAdditions(changeEvent);
+    targets.delete(currentTarget);
     if (targets.size === 0) {
         return;
     }
