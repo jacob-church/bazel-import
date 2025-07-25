@@ -1,89 +1,95 @@
 import * as vscode from 'vscode';
-import {uriToContainingUri} from './uritools';
-import {uriToBuildTarget} from './targettools';
-import {positionsFromTextChanges, urisFromTextChanges} from './importparse';
-import {getImportedTargets} from './bazeltools';
+import { updateActiveEditor } from './groups/active';
+import { chooseFileToFixDeps } from './groups/fixdeps';
+import { ActiveFile } from './model/activeFile';
+import { uriToBuild } from './util/filepathtools';
+import { packageTooLarge } from './util/packagetools';
+import { removeDeps } from './groups/remove';
+import { addDeps } from './groups/add';
 
-const OPEN_BUTTON = 'Open';
-const DISMISS_BUTTON = "Don't show this again";
+export const STATUS_BAR_COMMAND_ID = "bazel-import.showStatusBarOptions";
+export const BUILD_FILE = vscode.workspace.getConfiguration('bazel-import').buildFile;
+export const TS_LANGUAGE_ID = 'typescript';
 
-let terminal: vscode.Terminal | undefined = undefined;
-
-export function activate(context: vscode.ExtensionContext) {
-    vscode.commands.registerCommand('bazel-import.openBazel', async () => {
-        const activeUri = vscode.window.activeTextEditor?.document.uri;
+export async function activate(context: vscode.ExtensionContext) {
+    const bazelCommand = vscode.commands.registerCommand('bazel-import.openBazel', async () => {
+        const activeUri = vscode.window.activeTextEditor?.document.uri;    
         if (activeUri) {
-            const currTargetPair = await uriToBuildTarget(uriToContainingUri(activeUri));
+            const currTargetPair = uriToBuild(activeUri);
             if (currTargetPair) {
                 const buildFileUri = currTargetPair[1];
                 vscode.workspace.openTextDocument(buildFileUri);
             }
         }
     });
-    vscode.workspace.onDidChangeTextDocument(async (changeEvent: vscode.TextDocumentChangeEvent) => {
+
+    const changeEditorListener = vscode.window.onDidChangeActiveTextEditor(updateActiveEditor);
+
+    const changeTextListener = vscode.workspace.onDidChangeTextDocument(async (changeEvent: vscode.TextDocumentChangeEvent) => {
         if (changeEvent.contentChanges.length === 0 || changeEvent.document.uri.fsPath !== vscode.window.activeTextEditor?.document.uri.fsPath) {
             return; // skip empty changes and changes from other documents
         }
-        const targets = new Set(); // if changeEvent.document !== window.activeTextEditor?.document, we should ignore this change
-        let currentTarget: string | undefined;
-        let buildFileUri: vscode.Uri | undefined; // let's assert that the changeEvent matches the currently open text editor; that will filter out changes that come from other sources
 
-        // Step 1: Find symbol position for dependency lookup and external build targets (e.g. @angule/core)
-        const [positions, externalTargets] = positionsFromTextChanges(changeEvent.contentChanges);
-        externalTargets.forEach((val) => targets.add(val));
-        if (positions.length + externalTargets.size === 0) {
-            return;
+        // Save the current instance of file so a change in the active file won't break the analysis
+        const savedActiveFile = ActiveFile.data;
+        // DELETIONS
+        if (savedActiveFile && !packageTooLarge() && vscode.workspace.getConfiguration('bazel-import').enableDeletion) {
+            removeDeps(changeEvent, savedActiveFile);
+            ActiveFile.data.documentState = changeEvent.document.getText(); 
         }
-
-        // Step 2: Determine the current build target (e.g. where are we adding new dependencies to?)
-        const currentUri = uriToContainingUri(changeEvent.document.uri);
-        const currentTargetPair = await uriToBuildTarget(currentUri);
-        currentTarget = currentTargetPair?.[0];
-        buildFileUri = currentTargetPair?.[1];
-        if (!currentTarget) {
-            return;
-        }
-
-        // Step 3: Lookup Symbols and find the file paths where they are defined
-        const uris = await urisFromTextChanges(positions, changeEvent.document.uri);
-        if (uris.length === 0) {
-            return;
-        }
-
-        // Step 4: Convert file paths to relevant build targets
-        const depTargets = await getImportedTargets(uris, currentTarget);
-        depTargets.forEach((val) => targets.add(val));
-        if (targets.size === 0) {
-            return;
-        }
-
-        // Step 5: Do the update
-        if (!terminal) {
-            terminal = vscode.window.createTerminal({
-                hideFromUser: true,
-                isTransient: true,
-            });
-        }
-        const deps = Array.from(targets).join(' ');
-        const buildozer = `buildozer "add deps ${deps}" "${currentTarget}"`;
-        console.log(`Executing: ${buildozer}`);
-        terminal.sendText(buildozer);
-        if (vscode.workspace.getConfiguration('bazel-import').notifyChange) {
-            const buildFile = vscode.workspace.getConfiguration('bazel-import').buildFile;
-            vscode.window
-                .showInformationMessage(`Bazel deps added to ${buildFile}`, OPEN_BUTTON, DISMISS_BUTTON)
-                .then((button) => {
-                    if (button === OPEN_BUTTON && buildFileUri) {
-                        vscode.window.showTextDocument(buildFileUri);
-                    }
-                    if (button === DISMISS_BUTTON) {
-                        vscode.workspace.getConfiguration('bazel-import').update('notifyChange', false);
-                    }
-                });
-        }
+        addDeps(changeEvent, savedActiveFile);
     });
+
+    const statusBarCommand = activateStatusBarCommand();
+
+    context.subscriptions.push(bazelCommand, changeEditorListener, changeTextListener, activeStatusBarItem, statusBarCommand);
+
+    await updateActiveEditor(vscode.window.activeTextEditor);
 }
 
+export enum ExtensionState {
+    ready,
+    waiting,
+    inactive,
+    active
+}
+
+/**
+ * For internal testing and monitoring
+ * State that monitors the resolution of extension handlers
+ */
+let extensionState: ExtensionState = ExtensionState.inactive;
+
+export function getExtensionState(): ExtensionState {
+    return extensionState; 
+}
+
+/**
+ * For testing and monitoring
+ * @param state updates the state of the extension
+ */
+export function setExtensionState(state: ExtensionState): void {
+    extensionState = state; 
+}
+
+const activeStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+
+export function updateStatusBar(tooltip: string | vscode.MarkdownString | undefined, text?: string) {
+    activeStatusBarItem.tooltip = tooltip;
+    if (text !== undefined) {
+        activeStatusBarItem.text = text;
+    }
+}
+
+function activateStatusBarCommand(): vscode.Disposable {
+    activeStatusBarItem.text = '$(wand)';
+    activeStatusBarItem.tooltip = 'Run dependency fixup on a bazel package';
+    activeStatusBarItem.command = STATUS_BAR_COMMAND_ID;
+    activeStatusBarItem.show();
+    return vscode.commands.registerCommand(STATUS_BAR_COMMAND_ID, chooseFileToFixDeps);
+}
+
+// TODO: cleanup listeners
 export function deactivate() {
-    terminal?.dispose();
+
 }

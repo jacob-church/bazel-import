@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
-import {uriToContainingUri} from './uritools';
-import {uriToBuildTarget} from './targettools';
+import { uriToBuild } from '../util/filepathtools';
 
 /**
  * Takes a list of file Uris and returns the corresponding build targets
@@ -11,8 +10,7 @@ import {uriToBuildTarget} from './targettools';
 export async function getImportedTargets(uris: vscode.Uri[], currentTarget: string): Promise<Set<string>> {
     const depPromises = await Promise.all(
         uris.map((uri) => {
-            const dir = uriToContainingUri(uri);
-            return uriToBuildTarget(dir);
+            return uriToBuild(uri);
         }),
     );
     const depTargets = new Set<string>();

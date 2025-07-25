@@ -22,8 +22,8 @@
 			"type": "extensionHost",
 			"request": "launch",
 			"args": [
-				"--extensionDevelopmentPath=${workspaceFolder}",
-				"--extensionTestsPath=${workspaceFolder}/out/test/suite/index"
+				"--extensionDevelopmentPath=${workspaceFolder}/src/test/config",
+				"--extensionTestsPath=${workspaceFolder}/out/test"
 			],
 			"outFiles": [
 				"${workspaceFolder}/out/test/**/*.js"
