@@ -21,7 +21,7 @@ const SELECT_FILE: string = '$(file-directory) Select a file';
 const EXCLUDED_DEPENDENCIES = vscode.workspace.getConfiguration('bazel-import').excludeDependencies ?? undefined;
 
 
-export const statusBarOptions = async (file?: vscode.Uri) => {
+export async function chooseFileToFixDeps(file?: vscode.Uri) {
     if (file) {
         runDepsFix(file);
         return;
@@ -61,7 +61,7 @@ export const statusBarOptions = async (file?: vscode.Uri) => {
     }
 };
 
-const getFile = async () => {
+async function getFile() {
     const startUri = vscode.window.activeTextEditor ? vscode.window.activeTextEditor.document.uri : (
         vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0
             ? vscode.workspace.workspaceFolders[0].uri
@@ -85,7 +85,7 @@ const getFile = async () => {
     return (fileUri && fileUri.length > 0) ? fileUri[0] : undefined; 
 };
 
-export const runDepsFix = async (file: vscode.Uri | undefined) => {
+export async function runDepsFix(file: vscode.Uri | undefined) {
     if (file === undefined) {
         console.error("File not defined");
         showDismissableMessage("No file selected");
@@ -105,15 +105,20 @@ export const runDepsFix = async (file: vscode.Uri | undefined) => {
                     vscode.window.showWarningMessage("Files modified. Check package for incorrect dependencies");
                 }
             });
+            const shouldHalt = (expression: boolean = false, haltmsg?: string) => {
+                if (expression || token.isCancellationRequested) {
+                    cancellationDisposable.dispose();
+                    haltmsg === undefined ? "" : showDismissableMessage(haltmsg);
+                    return true;
+                }
+                return false;
+            };
 
             // Get build target
             progress.report({message: "finding build dependencies"});
             const [buildTarget, buildUri] = uriToBuild(file) ?? ["", file];
-            if (buildTarget === "" || token.isCancellationRequested) {
-                showDismissableMessage("No build target found");
-                cancellationDisposable.dispose();
-                return;
-            }
+            if (shouldHalt(buildTarget === "", "No build target found")) { return; }
+
             console.debug("Target", buildTarget, "Uri", buildUri); 
             
             // Get current bazel deps
@@ -123,14 +128,12 @@ export const runDepsFix = async (file: vscode.Uri | undefined) => {
             );
 
             console.debug("Build deps", currentDeps);
-            if (token.isCancellationRequested) {
-                cancellationDisposable.dispose();
-                return; 
-            }
+            if (shouldHalt()) { return; }
 
             // Get current package sources
             progress.report({message: "getting current package"});
             const [packageUris,,] = await getPackageSourceUris(uriToContainingUri(file)) ?? [undefined, undefined, undefined];
+            // So type checker is happy
             if (packageUris === undefined || token.isCancellationRequested) {
                 cancellationDisposable.dispose();
                 return;
@@ -142,10 +145,7 @@ export const runDepsFix = async (file: vscode.Uri | undefined) => {
             // Needed so it doesn't add self dependency
             dependencyTargets.delete(buildTarget);
             console.debug("Dependencies", dependencyTargets);
-            if (dependencyTargets.size === 0 || token.isCancellationRequested) {
-                cancellationDisposable.dispose();
-                return;
-            }
+            if (shouldHalt(dependencyTargets.size === 0)) { return; }
 
             progress.report({message: "comparing dependencies and modifying build file"});
             const addDeps: string[] = [];
@@ -156,11 +156,7 @@ export const runDepsFix = async (file: vscode.Uri | undefined) => {
             }
             const removeDeps: string[] = Array.from(currentDeps);
             console.debug("Add", addDeps, "Remove", removeDeps); 
-            if (addDeps.length === 0 && removeDeps.length === 0) {
-                cancellationDisposable.dispose();
-                showDismissableMessage("Dependencies already up to date");
-                return;
-            }
+            if (shouldHalt((addDeps.length === 0 && removeDeps.length === 0), "Dependencies already up to date")) { return; }
 
             modificationsMade = await updateBuildDeps({ addDeps, removeDeps, buildTarget, fileUri: file });
             showDismissableFileMessage(

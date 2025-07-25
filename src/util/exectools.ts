@@ -76,7 +76,7 @@ function isRejection(error: unknown): error is Rejection {
     'stderr' in error &&
     typeof (error as Rejection).stderr === 'string'
   );
-}// TODO: Remove dup
+}
 
 export async function updateBuildDeps(
     { addDeps = [], removeDeps = [], buildTarget, fileUri }: { addDeps?: string[]; removeDeps?: string[]; buildTarget: string; fileUri: vscode.Uri; }) {

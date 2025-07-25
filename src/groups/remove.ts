@@ -35,9 +35,9 @@ export async function removeDeps(changeEvent: vscode.TextDocumentChangeEvent, ch
     // Step 4: If there are build files left, removed those dependencies from the target BUILD.bazel
     try {
         const didUpdate = await updateBuildDeps({
-            'removeDeps': targetDepsToRemove,
-            'fileUri': changeEvent.document.uri,
-            'buildTarget': changedFile.target
+            removeDeps: targetDepsToRemove,
+            fileUri: changeEvent.document.uri,
+            buildTarget: changedFile.target
         });
         if (didUpdate) {
             showDismissableFileMessage(`Bazel deps removed from ${BUILD_FILE}`, changedFile.buildUri);

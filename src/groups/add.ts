@@ -35,9 +35,9 @@ export async function addDeps(changeEvent: vscode.TextDocumentChangeEvent, chang
     // Step 3: Do the update
     try {
         const didUpdate = await updateBuildDeps({
-            'addDeps': Array.from(targets),
-            'buildTarget': currentTarget,
-            'fileUri': changeEvent.document.uri
+            addDeps: Array.from(targets),
+            buildTarget: currentTarget,
+            fileUri: changeEvent.document.uri
         });
         if (didUpdate) {
             showDismissableFileMessage(`Bazel deps added to ${BUILD_FILE}`, buildFileUri);

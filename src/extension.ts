@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { updateActiveEditor } from './groups/active';
-import { statusBarOptions } from './groups/fixdeps';
+import { chooseFileToFixDeps } from './groups/fixdeps';
 import { ActiveFile } from './model/activeFile';
 import { uriToBuild } from './util/filepathtools';
 import { packageTooLarge } from './util/packagetools';
@@ -86,7 +86,7 @@ function activateStatusBarCommand(): vscode.Disposable {
     activeStatusBarItem.tooltip = 'Run dependency fixup on a bazel package';
     activeStatusBarItem.command = STATUS_BAR_COMMAND_ID;
     activeStatusBarItem.show();
-    return vscode.commands.registerCommand(STATUS_BAR_COMMAND_ID, statusBarOptions);
+    return vscode.commands.registerCommand(STATUS_BAR_COMMAND_ID, chooseFileToFixDeps);
 }
 
 // TODO: cleanup listeners

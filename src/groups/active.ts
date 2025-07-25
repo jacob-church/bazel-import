@@ -10,15 +10,11 @@ import { getPackageSourceUris, packageTooLarge } from '../util/packagetools';
 
 const CHANGE_PACKAGE_LIMIT_BUTTON = 'Change max package size';
 const CACHE_SIZE: number = Number(vscode.workspace.getConfiguration('bazel-import').maxCacheSize);
-const cache = new Cache<ActiveKey,ActiveData>(CACHE_SIZE);
+const cache = new Cache<string, ActiveData>(CACHE_SIZE);
 const DELETION_ENABLED = vscode.workspace.getConfiguration('bazel-import').enableDeletion;
 
-export interface ActiveKey {
-    target: string;
-}
-
 export interface ActiveData {
-    packageSources: Set<string>, // Uri string representation
+    packageSources: Array<vscode.Uri>, // Uri string representation
     buildUri: vscode.Uri;
 }
 
@@ -39,7 +35,9 @@ export async function updateActiveEditor(editor: vscode.TextEditor | undefined) 
         return;
     }
     
-    if (uriToBuild(document.uri) === undefined) {
+    const [buildTarget, buildUri] = uriToBuild(document.uri) ?? [undefined, undefined];
+
+    if (buildTarget === undefined) {
         updateStatusBar(
             'File not part of bazel package',
             '$(eye-closed)'
@@ -59,38 +57,34 @@ export async function updateActiveEditor(editor: vscode.TextEditor | undefined) 
         return; 
     }
 
-    let found = false; 
-    for (const {key, value} of cache) {
-        if (value?.packageSources.has(document.uri.toString())) {
-            const packageSources = urisFromStrings(Array.from(value.packageSources));
-            const buildUri = value.buildUri; 
-            const target = key;
+    const value = cache.get(buildTarget);
+    if (value !== undefined) {
+        console.debug("Cache hit", buildTarget);
+        const packageSources = value.packageSources;
+        const buildUri = value.buildUri; 
 
-            ActiveFile.data = {
-                packageSources: packageSources,
-                buildUri: buildUri,
-                target: target.target, 
-                documentState: document.getText(),
-                uri: document.uri,
-            };
-
-            found = true; 
-            cache.get(key);
-            break;
-        }
+        ActiveFile.data = {
+            packageSources: packageSources,
+            buildUri: buildUri,
+            target: buildTarget, 
+            documentState: document.getText(),
+            uri: document.uri,
+        };
     }
-    if (!found) {
+    else {
+        console.debug("Cache miss", buildTarget);
         await loadPackageSources(document); 
+        if (!packageTooLarge()) {
+            cache.set(
+                ActiveFile.data.target,
+            {
+                packageSources: ActiveFile.data.packageSources, 
+                buildUri: ActiveFile.data.buildUri,
+            });
+        }
     }
 
     validatePackageSize();
-
-    cache.set({
-        target: ActiveFile.data.target,
-    }, {
-        packageSources: new Set(ActiveFile.data.packageSources.map(src => src.toString())), 
-        buildUri: ActiveFile.data.buildUri,
-    });
 
     setDeletionStatus(fileName);
     setExtensionState(ExtensionState.active);
@@ -136,10 +130,6 @@ function validatePackageSize() {
 
     const msg = `${path.basename(ActiveFile.data.uri.fsPath ?? "undefined")} opened with deletion ${enabledStatus}`;
     showDismissableMessage(msg);
-}
-
-function urisFromStrings(strings: string[]): vscode.Uri[] {
-    return strings.map(strUri => vscode.Uri.parse(strUri)); 
 }
 
 async function loadPackageSources(document: vscode.TextDocument) {
