@@ -29,7 +29,7 @@ This extension contributes the following settings:
 - `bazel-import.externalTargets`: External dependency path previxes and their associated external build targets
 - `bazel-import.notifyChange`: Notify the user that a build file has been updated
 - `bazel-import.excludeDependencies`: Excludes dependencies from the manual tool. Use for hidden dependencies. You can find hidden dependencies by querying the dependency label on your build file and comparing with the dependency array in the build file <span style="color:blue;font-weight:bold">[BETA]</span>
-- `bazel-import.enableDeletions`: Enables deletion analysis <span style="color:blue;font-weight:bold">[BETA]</span>
+- `bazel-import.enableDeletion`: Toggles automatic deletions <span style="color:blue;font-weight:bold">[BETA]</span>
 - `bazel-import.maxPackageSize`: Maximum package size to be considered for deletion <span style="color:blue;font-weight:bold">[BETA]</span>
 - `bazel-import.maxCacheSize`: Maximum packages to cache <span style="color:blue;font-weight:bold">[BETA]</span>
 

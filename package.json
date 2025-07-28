@@ -71,7 +71,7 @@
 					},
 					"bazel-import.maxPackageSize": {
 						"type": "integer",
-						"default": 10,
+						"default": 100,
 						"description": "The maximum package size for removing dependencies. The larger this number, the slower the extension"
 					},
 					"bazel-import.maxCacheSize": {
@@ -81,7 +81,7 @@
 					},
 					"bazel-import.enableDeletion": {
 						"type": "boolean",
-						"default": false,
+						"default": true,
 						"description": "Remove bazel dependencies"
 					},
 					"bazel-import.excludeDependencies": {
