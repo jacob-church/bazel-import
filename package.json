@@ -19,6 +19,11 @@
 				"command": "bazel-import.openBazel",
 				"title": "Nearest Bazel file",
 				"category": "Open"
+			},
+			{
+				"command": "bazel-import.fixDeps",
+				"title": "Fix deps",
+				"category": "Bazel Import"
 			}
 		],
 		"configuration": [
