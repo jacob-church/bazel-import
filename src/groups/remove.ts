@@ -40,7 +40,7 @@ export async function removeDeps(changeEvent: vscode.TextDocumentChangeEvent, ch
             buildTarget: changedFile.target
         });
         if (didUpdate) {
-            showDismissableFileMessage(`Bazel deps removed from ${BUILD_FILE}`, changedFile.buildUri);
+            showDismissableFileMessage(`${targetDepsToRemove.length} dep(s) removed from ${BUILD_FILE}`, changedFile.buildUri);
         } else {
             showDismissableMessage("Bazel deps not removed (dependency still exists)");
         }

@@ -41,7 +41,7 @@ export async function addDeps(changeEvent: vscode.TextDocumentChangeEvent, chang
             fileUri: changeEvent.document.uri
         });
         if (didUpdate) {
-            showDismissableFileMessage(`Bazel deps added to ${BUILD_FILE}`, buildFileUri);
+            showDismissableFileMessage(`Attempted to add ${targets.size} dep(s) to ${BUILD_FILE}. One or more targets added successfully.`, buildFileUri);
         }
     } catch (error) {
         handleBuildozerError({
