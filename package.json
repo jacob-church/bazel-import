@@ -2,7 +2,7 @@
 	"name": "bazel-import",
 	"displayName": "bazel-import",
 	"description": "Automatically add Bazel deps when you import code",
-	"version": "0.1.2",
+	"version": "0.1.3",
 	"engines": {
 		"vscode": "^1.66.0"
 	},
@@ -19,6 +19,11 @@
 				"command": "bazel-import.openBazel",
 				"title": "Nearest Bazel file",
 				"category": "Open"
+			},
+			{
+				"command": "bazel-import.fixDeps",
+				"title": "Fix deps",
+				"category": "Bazel Import"
 			}
 		],
 		"configuration": [
@@ -66,7 +71,7 @@
 					},
 					"bazel-import.maxPackageSize": {
 						"type": "integer",
-						"default": 10,
+						"default": 100,
 						"description": "The maximum package size for removing dependencies. The larger this number, the slower the extension"
 					},
 					"bazel-import.maxCacheSize": {
@@ -76,7 +81,7 @@
 					},
 					"bazel-import.enableDeletion": {
 						"type": "boolean",
-						"default": false,
+						"default": true,
 						"description": "Remove bazel dependencies"
 					},
 					"bazel-import.excludeDependencies": {

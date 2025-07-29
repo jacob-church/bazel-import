@@ -3,7 +3,7 @@ import { Cache } from '../model/basecache';
 import {TS_LANGUAGE_ID, ExtensionState, setExtensionState, updateStatusBar} from '../extension';
 import {uriEquals, uriToContainingUri} from '../util/uritools';
 import { ActiveFile } from '../model/activeFile';
-import {MAX_PKG_SIZE, showDismissableMessage, showErrorMessage, updateMaxPackageSize} from '../userinteraction';
+import {MAX_PKG_SIZE, showErrorMessage, updateMaxPackageSize} from '../userinteraction';
 import * as path from 'path';
 import { uriToBuild } from '../util/filepathtools';
 import { getPackageSourceUris, packageTooLarge } from '../util/packagetools';
@@ -110,11 +110,9 @@ function handleActiveFileDirectoryChange(newDocument: vscode.TextDocument) {
 }
 
 /**
- * Sets the deletion enabled flag depending on the size of the current package and informs user of status
+ * Sets the deletion enabled flag depending on the size of the current package
  */ 
 function validatePackageSize() {
-    let enabledStatus = 'enabled';
-        
     if (packageTooLarge()) {
         vscode.window
             .showWarningMessage(
@@ -125,11 +123,7 @@ function validatePackageSize() {
                     updateMaxPackageSize(); 
                 }
             });
-        enabledStatus = 'disabled';
     }
-
-    const msg = `${path.basename(ActiveFile.data.uri.fsPath ?? "undefined")} opened with deletion ${enabledStatus}`;
-    showDismissableMessage(msg);
 }
 
 async function loadPackageSources(document: vscode.TextDocument) {

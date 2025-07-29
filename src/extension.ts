@@ -7,7 +7,7 @@ import { packageTooLarge } from './util/packagetools';
 import { removeDeps } from './groups/remove';
 import { addDeps } from './groups/add';
 
-export const STATUS_BAR_COMMAND_ID = "bazel-import.showStatusBarOptions";
+export const STATUS_BAR_COMMAND_ID = "bazel-import.fixDeps";
 export const BUILD_FILE = vscode.workspace.getConfiguration('bazel-import').buildFile;
 export const TS_LANGUAGE_ID = 'typescript';
 
