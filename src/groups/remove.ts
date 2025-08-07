@@ -7,7 +7,9 @@ import { getImportPathsFromPackage } from '../util/packagetools';
 import { uriEquals } from '../util/uritools';
 import { updateBuildDeps, handleBuildozerError } from '../util/exectools';
 import { fsToWsPath } from '../util/filepathtools';
-import { FilesContext, streamTargetInfosFromFilePaths, TargetInfo } from '../util/bazeltools';
+import { streamTargetInfosFromFilePaths } from '../util/bazeltools';
+import { TargetInfo } from '../model/bazelquery/targetinfo';
+import { FilesContext } from '../model/bazelquery/filescontext';
 
 // DELETION
 export async function removeDeps(changeEvent: vscode.TextDocumentChangeEvent, changedFile: ActiveFileData) {

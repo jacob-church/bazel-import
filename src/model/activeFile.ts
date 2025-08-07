@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
-import { FilesContext, TargetInfo } from '../util/bazeltools';
+import { TargetInfo } from './bazelquery/targetinfo';
+import { FilesContext } from './bazelquery/filescontext';
 
 export interface ActiveFileData {
     documentState: string,

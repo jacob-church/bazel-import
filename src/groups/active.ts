@@ -6,7 +6,9 @@ import {MAX_PKG_SIZE, updateMaxPackageSize} from '../userinteraction';
 import * as path from 'path';
 import { bazelLabelToUris, fsToWsPath, uriToBuild } from '../util/filepathtools';
 import { packageTooLarge } from '../util/packagetools';
-import { FilesContext, getTargetInfosFromFilePaths, TargetInfo } from '../util/bazeltools';
+import { streamTargetInfosFromFilePaths } from '../util/bazeltools';
+import { TargetInfo } from '../model/bazelquery/targetinfo';
+import { FilesContext } from '../model/bazelquery/filescontext';
 
 export {cache as PkgCache};
 
@@ -93,7 +95,7 @@ export async function updateActiveEditor(editor: vscode.TextEditor | undefined) 
     }
     else {
         console.debug("Cache miss", buildTarget);
-        const [context, packageSources, target] = await loadPackageSources(document); 
+        const [context, packageSources, target] = await loadPackageSources(document.uri); 
         ActiveFile.data = {
             packageSources: packageSources,
             buildUri: buildUri,
@@ -107,9 +109,9 @@ export async function updateActiveEditor(editor: vscode.TextEditor | undefined) 
             cache.set(
                 buildUri.toString(),
             {
-                context: ActiveFile.data.context,
-                packageSources: ActiveFile.data.packageSources, 
-                buildUri: ActiveFile.data.buildUri,
+                context: context,
+                packageSources: packageSources, 
+                buildUri: buildUri,
             });
         }
     }
@@ -147,11 +149,11 @@ function uriToPkgString(uri: vscode.Uri) {
     return pkgDir + ':*';
 }
 
-async function loadPackageSources(document: vscode.TextDocument): Promise<[FilesContext<string,string,TargetInfo>, vscode.Uri[], string]> {
-    const pkgString = uriToPkgString(document.uri);
-    const context = await getTargetInfosFromFilePaths([pkgString]);
+export async function loadPackageSources(fileUri: vscode.Uri): Promise<[FilesContext<string,string,TargetInfo>, vscode.Uri[], string]> {
+    const pkgString = uriToPkgString(fileUri);
+    const context = await streamTargetInfosFromFilePaths([pkgString]);
 
-    const wsPath = fsToWsPath(document.uri.fsPath);
+    const wsPath = fsToWsPath(fileUri.fsPath);
     const info = context.getInfo(wsPath);
 
     if (info === undefined) {

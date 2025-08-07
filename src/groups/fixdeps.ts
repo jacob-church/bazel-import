@@ -5,7 +5,7 @@ import { BUILD_FILE } from '../extension';
 import { uriToContainingUri } from '../util/uritools';
 import { getBazelDeps, handleBuildozerError, updateBuildDeps } from '../util/exectools';
 import { showDismissableFileMessage, showDismissableMessage } from '../userinteraction';
-import { getBuildTargetsFromPackage, getPackageSourceUris } from '../util/packagetools';
+import { getBuildTargetsFrmPackage, getPackageSourceUris } from '../util/packagetools';
 
 /** 
  * 1. Finds the build target for the file -------------------------------- 🗹
