@@ -8,6 +8,8 @@ import * as path from 'path';
 import { uriToBuild } from '../util/filepathtools';
 import { getPackageSourceUris, packageTooLarge } from '../util/packagetools';
 
+export {cache as PkgCache};
+
 const CHANGE_PACKAGE_LIMIT_BUTTON = 'Change max package size';
 const CACHE_SIZE: number = Number(vscode.workspace.getConfiguration('bazel-import').maxCacheSize);
 const cache = new Cache<string, ActiveData>(CACHE_SIZE);

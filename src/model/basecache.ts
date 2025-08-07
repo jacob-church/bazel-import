@@ -97,22 +97,38 @@ export class Cache<K,V>{
     }
 
     private trimBack(): void {
-        if (this.tail.prev === undefined) {
-            throw Error("unexpected undefined head"); 
+        const removeNode = this.tail.prev;
+        if (removeNode === this.head || removeNode === undefined) {
+            return;
         }
-        const removeNode = this.tail.prev; 
-        this.tail.prev = this.tail.prev.prev;
-        if (this.tail.prev === undefined) {
-            throw Error("unexpected undefined prev"); 
-        }
-        this.tail.prev.next = this.tail; 
+        this.deleteNode(removeNode);
+    }
 
-        if (removeNode.key === undefined) {
-            throw Error("Cache node should not have an undefined key"); 
+    private deleteNode(removeNode: Node<K, V>) {
+        const forward = removeNode.next;
+        const back = removeNode.prev;
+        if (back === undefined || forward === undefined) {
+            throw Error(`Unexpected: Undefined nodes ${back} ${forward}`);
         }
+
+        back.next = forward;
+        forward.prev = back;
 
         this.nodeMap.delete(removeNode.key!); 
-        
+    }
+
+    /**
+     * Returns true if key existed and false if not
+     * @param key key to delete
+     */
+    public delete(key: K): boolean {
+        const targetNode = this.nodeMap.get(key);
+        if (targetNode === undefined) {
+            return false;
+        }
+
+        this.deleteNode(targetNode);
+        return true; 
     }
 
     public get(key: K): V | undefined {

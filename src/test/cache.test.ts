@@ -55,4 +55,19 @@ suite("The cache", () => {
         assert.strictEqual(testCache.get("test2"), undefined);
         assert.strictEqual(testCache.get("test1"), undefined);
     });
+
+    test("Should delete correctly", () => {
+        testCache.set("test1", 1);
+        testCache.set("test2", 2);
+        testCache.set("test3", 3); 
+        assert.strictEqual(testCache.nodeMap.size, 3);
+
+        assert(testCache.delete("test2")); 
+        assert(!testCache.delete("test2"));
+        assert.strictEqual(testCache.get("test2"), undefined);
+
+        assert.strictEqual(testCache.get("test3"), 3); 
+        assert.strictEqual(testCache.get("test1"), 1);
+        assert.strictEqual(testCache.nodeMap.size, 2);
+    });
 });
