@@ -39,7 +39,9 @@ export async function activate(context: vscode.ExtensionContext) {
             removeDeps(changeEvent, savedActiveFile);
             ActiveFile.data.documentState = changeEvent.document.getText(); 
         }
+        if (vscode.workspace.getConfiguration('bazel-import').enableAddition) {
         addDeps(changeEvent, savedActiveFile);
+        }
     });
 
     const fileCreationListener = vscode.workspace.onDidCreateFiles(onCreateOrDeleteFile);

@@ -84,6 +84,11 @@
 						"default": true,
 						"description": "Remove bazel dependencies"
 					},
+					"bazel-import.enableAddition": {
+						"type": "boolean",
+						"default": true,
+						"description": "Add bazel dependencies"
+					},
 					"bazel-import.excludeDependencies": {
 						"type": [
 							"array",
