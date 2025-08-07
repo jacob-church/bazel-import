@@ -1,6 +1,7 @@
 import * as vscode from 'vscode'; 
 import * as ts from 'typescript';
 import * as path from 'path';
+import * as fs from 'fs';
 import { filePathToTargetPath } from './targettools';
 import { Cache } from '../model/basecache';
 import { showErrorMessage } from '../userinteraction';
@@ -16,7 +17,7 @@ if (!tsExtension) {
 
 let configCache: Cache<string, ts.ParsedCommandLine> = new Cache<string, ts.ParsedCommandLine>(vscode.workspace.getConfiguration('bazel-import').maxCacheSize);
 
-export function resolveSpecifierToUri(
+export function resolveSpecifierToFilePath(
     hostFileUri: vscode.Uri,
     specifier: string
 ) {
@@ -38,14 +39,7 @@ export function resolveSpecifierToUri(
         fileExists: ts.sys.fileExists,
         readFile: ts.sys.readFile,
         directoryExists: ts.sys.directoryExists,
-        getCurrentDirectory: () => {
-            if (specifier.startsWith("@")) {
-                return path.dirname(configPath);
-            }
-            else {
-                return hostFileUri.fsPath;
-            }
-        },
+        getCurrentDirectory: () => path.dirname(configPath),
         getDirectories: ts.sys.getDirectories,
         realpath: ts.sys.realpath,
         useCaseSensitiveFileNames: ts.sys.useCaseSensitiveFileNames,
@@ -59,7 +53,7 @@ export function resolveSpecifierToUri(
 
     const resolved = ts.resolveModuleName(
         specifier,
-        hostFileUri.fragment,
+        hostFileUri.fsPath,
         parsedConfig.options,
         moduleResolutionHost
     );
@@ -68,7 +62,7 @@ export function resolveSpecifierToUri(
         return undefined; 
     }
 
-    return vscode.Uri.file(resolved.resolvedModule.resolvedFileName);
+    return resolved.resolvedModule.resolvedFileName;
 }
 
 function getConfiguration(configPath: string): ts.ParsedCommandLine | undefined {
@@ -93,32 +87,44 @@ function getConfiguration(configPath: string): ts.ParsedCommandLine | undefined 
 
 const BUILD_FILE = vscode.workspace.getConfiguration('bazel-import').buildFile;
 
+
+export function fpToBuildTarget(fsPath: string) {
+    const fileUri = vscode.Uri.file(fsPath);
+    const [target, ] = uriToBuild(fileUri) ?? [, ];
+    return target;
+}
+
+export function fpToBuild(fsPath: string) {
+    const fileUri = vscode.Uri.file(fsPath);
+    const [, buildUri] = uriToBuild(fileUri) ?? [,];
+    return buildUri; 
+}
+
+// TODO: consider removing the target logic
 export function uriToBuild(fileUri: vscode.Uri): [string, vscode.Uri] | undefined {
     const configPath = ts.findConfigFile(path.dirname(fileUri.fsPath), ts.sys.fileExists, BUILD_FILE);
     if (!configPath) {
         return undefined;
     }
+
     const rawTarget = filePathToTargetPath(configPath);
     const index = rawTarget?.indexOf(BUILD_FILE) ?? 1;
-
     const target = rawTarget?.slice(0, index - 1); 
-    const targetUri = vscode.Uri.file(configPath); 
     if (target === undefined) {
         return target;
     }
 
+    const targetUri = vscode.Uri.file(configPath); 
+
     return [target, targetUri]; 
 }
 
-export const getBuildTargetFromFilePath = (importPath: string, currentFile: vscode.Uri):  [string, vscode.Uri] => {
-    let fileUri: vscode.Uri | undefined;
-    if (importPath.startsWith('.')) {
-        importPath = path.resolve(path.dirname(currentFile.fsPath), importPath) + ".ts";
-        fileUri = vscode.Uri.file(importPath); 
+export async function getBuildTargetFromFilePath(importPath: string, currentFile: vscode.Uri): Promise<[string, vscode.Uri]> {
+    const filePath = importToFullPath(currentFile, importPath);
+    if (filePath === undefined) {
+        throw new Error("Bad file path"); 
     }
-    else {
-        fileUri = resolveSpecifierToUri(currentFile, importPath);
-    }
+    const fileUri: vscode.Uri | undefined = vscode.Uri.file(filePath);
 
     if (!fileUri) {
         throw new Error("File not found");
@@ -129,6 +135,47 @@ export const getBuildTargetFromFilePath = (importPath: string, currentFile: vsco
     }
     return target;
 };
+
+export function importToFullPath(currentFile: vscode.Uri, importPath: string) {
+    let filePath: string | undefined;
+
+    if (importPath.startsWith('.')) {
+        filePath = path.resolve(path.dirname(currentFile.fsPath), importPath) + ".ts";
+        if (fs.existsSync(filePath)) {
+            return filePath;
+        }
+    }
+    filePath = resolveSpecifierToFilePath(currentFile, importPath);
+
+    return filePath;
+}
+
+export function fsToRelativePath(fsPath: string) {
+    return vscode.workspace.asRelativePath(fsPath);
+}
+
+// File system to Workspace Path
+export function fsToWsPath(fsPath: string) {
+    return '//' + fsToRelativePath(fsPath);
+}
+
+function wsToRelativePath(wsPath: string): string {
+    return wsPath.substring(2);
+}
+function wsToFsPath(wsPath: string): string {
+    const relativePath = wsToRelativePath(wsPath);
+    return getRoot() + relativePath;
+}
+
+function bazelLabelToUri(src: string): vscode.Uri {
+    const wsPath = src.replace(':', '/');
+    const fsPath = wsToFsPath(wsPath);
+    return vscode.Uri.file(fsPath);
+}
+
+export function bazelLabelToUris(srcs: string[]) {
+    return srcs.map(bazelLabelToUri);
+}
 
 export function getRoot() {
     const cwd = path.join(homedir(), '/lucid/main/'); // TODO get root; 

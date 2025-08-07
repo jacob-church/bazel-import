@@ -3,7 +3,7 @@ import {showDismissableFileMessage} from '../userinteraction';
 import {handleBuildozerError, updateBuildDeps} from '../util/exectools';
 import {ActiveFileData} from '../model/activeFile';
 import {uriToBuild} from '../util/filepathtools';
-import {getBuildTargetsFromAdditions} from '../util/eventtools';
+import {getAddedImportPaths} from '../util/eventtools';
 import {BUILD_FILE} from '../extension';
 import { uriEquals } from '../util/uritools';
 
@@ -26,9 +26,8 @@ export async function addDeps(changeEvent: vscode.TextDocumentChangeEvent, chang
     buildFileUri = currentTargetPair[1];
 
     // Step 2: Get the build targets from the added imports
-    const targets = getBuildTargetsFromAdditions(changeEvent);
-    targets.delete(currentTarget);
-    if (targets.size === 0) {
+    const addedImports = getAddedImportPaths(changeEvent); 
+    if (addedImports.length === 0) {
         return;
     }
     console.debug("Added Targets", targets);
@@ -36,12 +35,12 @@ export async function addDeps(changeEvent: vscode.TextDocumentChangeEvent, chang
     // Step 3: Do the update
     try {
         const didUpdate = await updateBuildDeps({
-            addDeps: Array.from(targets),
+            addDeps: targets,
             buildTarget: currentTarget,
             fileUri: changeEvent.document.uri
         });
         if (didUpdate) {
-            showDismissableFileMessage(`Attempted to add ${targets.size} dep(s) to ${BUILD_FILE}. One or more targets added successfully.`, buildFileUri);
+            showDismissableFileMessage(`Attempted to add ${targets.length} dep(s) to ${BUILD_FILE}. One or more targets added successfully.`, buildFileUri);
         }
     } catch (error) {
         handleBuildozerError({

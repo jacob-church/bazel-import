@@ -3,7 +3,7 @@ import {uriToContainingUri} from './uritools';
 import {filePathToTargetPath} from './targettools';
 import {ActiveFile} from '../model/activeFile';
 import {MAX_PKG_SIZE} from '../userinteraction';
-import {getBuildTargetsFromFile} from './filetools';
+import {getFullPathsFromFile} from './filetools';
 
 const BUILD_FILE_NAME = vscode.workspace.getConfiguration('bazel-import').buildFile;
 
@@ -76,8 +76,8 @@ export async function getPackageSourceUris(uri: vscode.Uri): Promise<[vscode.Uri
     }
 }
 
-export async function getBuildTargetsFromPackage(packageSources: vscode.Uri[]) {
-    return (await Promise.all(packageSources.map(async uri => getBuildTargetsFromFile(uri!)))).flat();
+export async function getImportPathsFromPackage(packageSources: vscode.Uri[]) {
+    return (await Promise.all(packageSources.map(async uri => getFullPathsFromFile(uri!)))).flat();
 } 
 
 export function packageTooLarge(): boolean {

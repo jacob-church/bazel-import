@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
 import {showDismissableFileMessage, showDismissableMessage} from '../userinteraction';
 import {ActiveFile, ActiveFileData} from '../model/activeFile';
-import {getBuildTargetsFromDeletions} from '../util/eventtools';
+import {getDeletedImportPaths} from '../util/eventtools';
 import {BUILD_FILE, ExtensionState, setExtensionState} from '../extension';
-import { getBuildTargetsFromPackage } from '../util/packagetools';
+import { getImportPathsFromPackage } from '../util/packagetools';
 import { uriEquals } from '../util/uritools';
 import { updateBuildDeps, handleBuildozerError } from '../util/exectools';
 
@@ -15,12 +15,13 @@ export async function removeDeps(changeEvent: vscode.TextDocumentChangeEvent, ch
 
     setExtensionState(ExtensionState.waiting);
 
-    // Find the build file(s) for deleted imports
-    const deletedDeps: Set<string> = getBuildTargetsFromDeletions(changedFile.documentState, changeEvent);
-    if (deletedDeps.size === 0) {
+    // Find the file paths for deleted imports
+    const deletedImports = getDeletedImportPaths(changedFile.documentState, changeEvent);
+    if (deletedImports.length === 0) {
         return;
     }
-    deletedDeps.delete(changedFile.target);
+
+    const remainingImports = await getImportPathsFromPackage(changedFile.packageSources);
 
     if (deletedDeps.size === 0) {
         showDismissableMessage("Bazel deps not removed (deleted import is in package)");
@@ -35,12 +36,12 @@ export async function removeDeps(changeEvent: vscode.TextDocumentChangeEvent, ch
     // Step 4: If there are build files left, removed those dependencies from the target BUILD.bazel
     try {
         const didUpdate = await updateBuildDeps({
-            removeDeps: targetDepsToRemove,
+            removeDeps: Array.from(targetDepsToRemove),
             fileUri: changeEvent.document.uri,
             buildTarget: changedFile.target
         });
         if (didUpdate) {
-            showDismissableFileMessage(`${targetDepsToRemove.length} dep(s) removed from ${BUILD_FILE}`, changedFile.buildUri);
+            showDismissableFileMessage(`${targetDepsToRemove.size} dep(s) removed from ${BUILD_FILE}`, changedFile.buildUri);
         } else {
             showDismissableMessage("Bazel deps not removed (dependency still exists)");
         }
@@ -55,14 +56,14 @@ export async function removeDeps(changeEvent: vscode.TextDocumentChangeEvent, ch
     setExtensionState(ExtensionState.ready);   
 }
 
-function validateDeletions(remainingDependencies: string[], deletedImports: Set<string>): string[] {
-    for (const target of remainingDependencies) {
-        if (deletedImports.delete(target)) {
-            console.debug(`${target} dep still exists\n`);
+function validateDeletions(remainingImports: Iterable<string>, deletedImports: Set<string>): Set<string> {
+    for (const imp of remainingImports) {
+        if (deletedImports.delete(imp)) {
+            console.debug(`${imp} dep still exists\n`);
         } 
         if (deletedImports.size === 0) {
             break; 
         }
     }
-    return Array.from(deletedImports);
+    return deletedImports;
 }
