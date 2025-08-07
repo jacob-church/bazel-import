@@ -159,15 +159,15 @@ export function fsToWsPath(fsPath: string) {
     return '//' + fsToRelativePath(fsPath);
 }
 
-function wsToRelativePath(wsPath: string): string {
+export function wsToRelativePath(wsPath: string): string {
     return wsPath.substring(2);
 }
-function wsToFsPath(wsPath: string): string {
+export function wsToFsPath(wsPath: string): string {
     const relativePath = wsToRelativePath(wsPath);
     return getRoot() + relativePath;
 }
 
-function bazelLabelToUri(src: string): vscode.Uri {
+export function bazelLabelToUri(src: string): vscode.Uri {
     const wsPath = src.replace(':', '/');
     const fsPath = wsToFsPath(wsPath);
     return vscode.Uri.file(fsPath);

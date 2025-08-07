@@ -1,20 +1,14 @@
 import * as vscode from 'vscode';
-import * as path from 'path';
-import { uriToBuild } from '../util/filepathtools';
+import { fsToWsPath, uriToBuild } from '../util/filepathtools';
 import { BUILD_FILE } from '../extension';
-import { uriToContainingUri } from '../util/uritools';
-import { getBazelDeps, handleBuildozerError, updateBuildDeps } from '../util/exectools';
+import { handleBuildozerError, updateBuildDeps } from '../util/exectools';
 import { showDismissableFileMessage, showDismissableMessage } from '../userinteraction';
-import { getBuildTargetsFrmPackage, getPackageSourceUris } from '../util/packagetools';
+import { getImportPathsFromPackage } from '../util/packagetools';
+import { ActiveData, loadPackageSources, PkgCache } from './active';
+import * as assert from 'assert';
+import { streamTargetInfosFromFilePaths } from '../util/bazeltools';
+import { pathsToTargets } from './remove';
 
-/** 
- * 1. Finds the build target for the file -------------------------------- 🗹
- * 2. Queries the current target list => set ----------------------------- 🗹
- * 3. Finds the package using the active editor workflow ----------------- 🗹
- * 4. Queries the bazel dep targets -------------------------------------- 🗹
- * 5. If those targets match the current target set then do nothing ------ 🗹
- * 6. Else add/remove dependencies that don't exist (using buildozer) ---- 🗹
- */
 
 const CURRENT_FILE: string = '$(file) Current file';
 const SELECT_FILE: string = '$(file-directory) Select a file';
@@ -105,6 +99,7 @@ export async function runDepsFix(file: vscode.Uri | undefined) {
                     vscode.window.showWarningMessage("Files modified. Check package for incorrect dependencies");
                 }
             });
+
             const shouldHalt = (expression: boolean = false, haltmsg?: string) => {
                 if (expression || token.isCancellationRequested) {
                     cancellationDisposable.dispose();
@@ -115,50 +110,54 @@ export async function runDepsFix(file: vscode.Uri | undefined) {
             };
 
             // Get build target
-            progress.report({message: "finding build dependencies"});
-            const [buildTarget, buildUri] = uriToBuild(file) ?? ["", file];
-            if (shouldHalt(buildTarget === "", "No build target found")) { return; }
+            progress.report({message: "loading package context"});
+            const [, buildUri] = uriToBuild(file) ??  [,];
+            if (shouldHalt(buildUri === undefined, "No build target found")) { return; }
+            assert(buildUri !== undefined); // Type checker
 
-            console.debug("Target", buildTarget, "Uri", buildUri); 
-            
-            // Get current bazel deps
-            const currentDeps: Set<string> = await getDepsFromBuild(
-                buildTarget,
-                path.dirname(file.fsPath),
-            );
-
-            console.debug("Build deps", currentDeps);
-            if (shouldHalt()) { return; }
-
-            // Get current package sources
-            progress.report({message: "getting current package"});
-            const [packageUris,,] = await getPackageSourceUris(uriToContainingUri(file)) ?? [undefined, undefined, undefined];
-            // So type checker is happy
-            if (packageUris === undefined || token.isCancellationRequested) {
-                cancellationDisposable.dispose();
-                return;
+            // Check cache and load on miss 
+            let data: ActiveData | undefined = PkgCache.get(buildUri.toString());
+            if (data === undefined) {
+                // TODO: consider putting this in a method and use in active.ts
+                const [pkgcontext, packageSources, name] = await loadPackageSources(file);
+                data = {
+                    context: pkgcontext,
+                    packageSources: packageSources,
+                    buildUri: buildUri
+                };
+                PkgCache.set(buildUri.toString(), data); 
             }
 
-            progress.report({message: `analyzing dependencies for ${packageUris.length} source file(s)`});
-            const dependencyTargets = new Set(await getBuildTargetsFromPackage(packageUris));
-            
+            const wsPath = fsToWsPath(file.fsPath);
+            const pkgInfo = data.context.getInfo(wsPath);
+            if (shouldHalt(pkgInfo === undefined, "Error in package")) { return; }
+            assert(pkgInfo !== undefined); // Type checker
+            const preFixDeps = new Set(pkgInfo.deps);
+
+            progress.report({message: `finding dependencies for ${data.packageSources.length} source file(s)`});
+            const importPaths = await getImportPathsFromPackage(data.packageSources);
+
+            const context = await streamTargetInfosFromFilePaths(importPaths);
+
+            const currentDependencyTargets = pathsToTargets(importPaths, context);
+
             // Needed so it doesn't add self dependency
-            dependencyTargets.delete(buildTarget);
-            console.debug("Dependencies", dependencyTargets);
-            if (shouldHalt(dependencyTargets.size === 0)) { return; }
+            currentDependencyTargets.delete(pkgInfo.name);
+            console.debug("New dependencies", currentDependencyTargets);
+            if (shouldHalt(currentDependencyTargets.size === 0)) { return; }
 
             progress.report({message: "comparing dependencies and modifying build file"});
-            const addDeps: string[] = [];
-            for (const target of dependencyTargets) {
-                if (!currentDeps.delete(target)) {
-                    addDeps.push(target);
+            const removeDeps: string[] = [];
+            for (const target of preFixDeps) {
+                if (!currentDependencyTargets.delete(target)) {
+                    removeDeps.push(target);
                 }
             }
-            const removeDeps: string[] = Array.from(currentDeps);
+            const addDeps: string[] = Array.from(currentDependencyTargets);
             console.debug("Add", addDeps, "Remove", removeDeps); 
             if (shouldHalt((addDeps.length === 0 && removeDeps.length === 0), "Dependencies already up to date")) { return; }
 
-            modificationsMade = await updateBuildDeps({ addDeps, removeDeps, buildTarget, fileUri: file });
+            modificationsMade = await updateBuildDeps({ addDeps, removeDeps, buildTarget: pkgInfo.name, fileUri: file });
             showDismissableFileMessage(
                 `Removed ${removeDeps.length} and added ${addDeps.length} dep(s) to ${BUILD_FILE}`,
                 buildUri
@@ -171,20 +170,3 @@ export async function runDepsFix(file: vscode.Uri | undefined) {
     });
 };
 
-async function getDepsFromBuild(buildTarget: string, directory: string): Promise<Set<string>> {
-    const depsString: string = await getBazelDeps(
-        buildTarget, 
-        directory, 
-        EXCLUDED_DEPENDENCIES
-    );
-
-    console.debug("Deps string", depsString);
-    const depsArray = depsString.split('\n').filter((dep) => dep.indexOf(':') >= 0).map(dep => {
-        const pkgIdx = dep.indexOf(':');
-        return dep.slice(0, pkgIdx);
-    });
-    const currentDeps: Set<string> = new Set(depsArray); 
-    console.debug("Build deps", currentDeps);
-
-    return currentDeps;
-}
