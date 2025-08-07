@@ -1,12 +1,12 @@
 import * as vscode from 'vscode';
 import { Cache } from '../model/basecache';
 import {TS_LANGUAGE_ID, ExtensionState, setExtensionState, updateStatusBar} from '../extension';
-import {uriEquals, uriToContainingUri} from '../util/uritools';
 import { ActiveFile } from '../model/activeFile';
-import {MAX_PKG_SIZE, showErrorMessage, updateMaxPackageSize} from '../userinteraction';
+import {MAX_PKG_SIZE, updateMaxPackageSize} from '../userinteraction';
 import * as path from 'path';
-import { uriToBuild } from '../util/filepathtools';
-import { getPackageSourceUris, packageTooLarge } from '../util/packagetools';
+import { bazelLabelToUris, fsToWsPath, uriToBuild } from '../util/filepathtools';
+import { packageTooLarge } from '../util/packagetools';
+import { FilesContext, getTargetInfosFromFilePaths, TargetInfo } from '../util/bazeltools';
 
 export {cache as PkgCache};
 
@@ -16,6 +16,7 @@ const cache = new Cache<string, ActiveData>(CACHE_SIZE);
 const DELETION_ENABLED = vscode.workspace.getConfiguration('bazel-import').enableDeletion;
 
 export interface ActiveData {
+    context: FilesContext<string, string, TargetInfo>
     packageSources: Array<vscode.Uri>, // Uri string representation
     buildUri: vscode.Uri;
 }
@@ -27,7 +28,7 @@ export async function updateActiveEditor(editor: vscode.TextEditor | undefined) 
     setExtensionState(ExtensionState.inactive); 
 
     const document = editor.document; 
-    const fileName = document.fileName.substring(document.fileName.lastIndexOf('/') + 1);
+    const fileName = path.basename(document.fileName);
     
     if (document.languageId !== TS_LANGUAGE_ID) {
         updateStatusBar(
@@ -37,9 +38,11 @@ export async function updateActiveEditor(editor: vscode.TextEditor | undefined) 
         return;
     }
     
-    const [buildTarget, buildUri] = uriToBuild(document.uri) ?? [undefined, undefined];
+    // This build target is no longer valid (uriToBuild should use another mechanism)
+    // BUT this is useful for determining whether or not an active file is actually in a package
+    const [buildTarget, buildUri] = uriToBuild(document.uri) ?? [, ];
 
-    if (buildTarget === undefined) {
+    if (buildUri === undefined) {
         updateStatusBar(
             'File not part of bazel package',
             '$(eye-closed)'
@@ -52,18 +55,32 @@ export async function updateActiveEditor(editor: vscode.TextEditor | undefined) 
         '$(loading~spin)'
     );
 
-    const newDir = handleActiveFileDirectoryChange(document);
-    if (newDir === undefined) {
-        setDeletionStatus(fileName);
-        setExtensionState(ExtensionState.active);
-        return; 
-    }
+    // This is not valid anymore because files can be in the same directory but not the same target
+    // HOWEVER, the logic may be reproduceable
+    // const newDir = handleActiveFileDirectoryChange(document);
+    // if (newDir === undefined) {
+    //     setDeletionStatus(fileName);
+    //     setExtensionState(ExtensionState.active);
+    //     return; 
+    // }
+    // ADD target map to active file cache 
 
-    const value = cache.get(buildTarget);
+    // TODO: 3 kinds of paths (consistent naming):
+    /**
+     * 1. fsPath
+     * 2. //relativePath wrPath
+     * 3. relativePath
+     */
+
+    // Needed info: (key is uri string?)
+    const value = cache.get(buildUri.toString());
     if (value !== undefined) {
-        console.debug("Cache hit", buildTarget);
+        console.debug("Cache hit", buildUri.toString());
         const packageSources = value.packageSources;
-        const buildUri = value.buildUri; 
+        const buildTarget = value.context.getTarget(fsToWsPath(document.uri.fsPath));
+        if (buildTarget === undefined) {
+            throw new Error('Build Target undefined');
+        }
 
         ActiveFile.data = {
             packageSources: packageSources,
@@ -71,15 +88,26 @@ export async function updateActiveEditor(editor: vscode.TextEditor | undefined) 
             target: buildTarget, 
             documentState: document.getText(),
             uri: document.uri,
+            context: value.context
         };
     }
     else {
         console.debug("Cache miss", buildTarget);
-        await loadPackageSources(document); 
+        const [context, packageSources, target] = await loadPackageSources(document); 
+        ActiveFile.data = {
+            packageSources: packageSources,
+            buildUri: buildUri,
+            target: target,
+            documentState: document.getText(),
+            uri: document.uri,
+            context: context
+        };
+        // TODO: maybe remove this
         if (!packageTooLarge()) {
             cache.set(
-                ActiveFile.data.target,
+                buildUri.toString(),
             {
+                context: ActiveFile.data.context,
                 packageSources: ActiveFile.data.packageSources, 
                 buildUri: ActiveFile.data.buildUri,
             });
@@ -90,25 +118,6 @@ export async function updateActiveEditor(editor: vscode.TextEditor | undefined) 
 
     setDeletionStatus(fileName);
     setExtensionState(ExtensionState.active);
-}
-
-/** 
- * Checks if the new document is in the old document's directory (i.e., does not need package update)
-*/
-function handleActiveFileDirectoryChange(newDocument: vscode.TextDocument) {
-    let oldDir = undefined; 
-    if (ActiveFile.data) {
-        oldDir = uriToContainingUri(ActiveFile.data.buildUri);
-    }
-
-    let newDir = uriToContainingUri(newDocument.uri); 
-    if (uriEquals(oldDir, newDir)) {
-        console.log("No need to reload the build packages");
-        ActiveFile.data.uri = newDocument.uri;
-        ActiveFile.data.documentState = newDocument.getText(); 
-        return undefined;
-    }
-    return newDir; 
 }
 
 /**
@@ -128,25 +137,30 @@ function validatePackageSize() {
     }
 }
 
-async function loadPackageSources(document: vscode.TextDocument) {
-    const currentTargetPair = await getPackageSourceUris(uriToContainingUri(document.uri));
-    if (currentTargetPair === undefined) {
-        showErrorMessage(
-            `${path.basename(document.uri.fsPath)} failed to open`
-        );
-        return;
-    }
-    const packageSources = currentTargetPair[0]; 
-    const currentTarget = currentTargetPair[1];
-    const currBuildURI = currentTargetPair[2];
 
-    ActiveFile.data = {
-        packageSources: packageSources,
-        target: currentTarget,
-        buildUri: currBuildURI, 
-        documentState: document.getText(),
-        uri: document.uri
-    };
+function uriToPkgString(uri: vscode.Uri) {
+    const fsPath = uri.fsPath;
+    const pkgDir = path.dirname(fsPath);
+    if (pkgDir.endsWith('/')) {
+        return pkgDir.slice(0, pkgDir.length - 1) + ':*';
+    }
+    return pkgDir + ':*';
+}
+
+async function loadPackageSources(document: vscode.TextDocument): Promise<[FilesContext<string,string,TargetInfo>, vscode.Uri[], string]> {
+    const pkgString = uriToPkgString(document.uri);
+    const context = await getTargetInfosFromFilePaths([pkgString]);
+
+    const wsPath = fsToWsPath(document.uri.fsPath);
+    const info = context.getInfo(wsPath);
+
+    if (info === undefined) {
+        throw new Error("Package Info undefined");
+    }
+
+    const packageSources = bazelLabelToUris(info.srcs);
+
+    return [context, packageSources, info.name];
 };
 
 function setDeletionStatus(fileName: string) {

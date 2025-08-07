@@ -55,12 +55,12 @@
 					"bazel-import.externalTargets": {
 						"type": "object",
 						"default": {
-							"@angular/core": "@npm//@angular/core",
-							"@angular/common": "@npm//@angular/common",
-							"@angular/router": "@npm//@angular/router",
-							"@angular/forms": "@npm//@angular/forms",
-							"@angular/platform-browser": "@npm//@angular/platform-browser",
-							"rxjs": "@npm//rxjs"
+							"@angular/core": "@npm//@angular/core:core",
+							"@angular/common": "@npm//@angular/common:common",
+							"@angular/router": "@npm//@angular/router:router",
+							"@angular/forms": "@npm//@angular/forms:forms",
+							"@angular/platform-browser": "@npm//@angular/platform-browser:platform-browser",
+							"rxjs": "@npm//rxjs:rxjs"
 						},
 						"description": "External dependency path prefixes and their associated external build targets."
 					},

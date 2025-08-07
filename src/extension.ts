@@ -40,7 +40,7 @@ export async function activate(context: vscode.ExtensionContext) {
             ActiveFile.data.documentState = changeEvent.document.getText(); 
         }
         if (vscode.workspace.getConfiguration('bazel-import').enableAddition) {
-        addDeps(changeEvent, savedActiveFile);
+            addDeps(changeEvent, savedActiveFile);
         }
     });
 
@@ -60,7 +60,7 @@ export async function activate(context: vscode.ExtensionContext) {
         fileDeletionListener
     );
     if (vscode.workspace.getConfiguration('bazel-import').bazelShutdown) {
-    await shutdownBazelHard();
+        await shutdownBazelHard();
     }
 
     await updateActiveEditor(vscode.window.activeTextEditor);
