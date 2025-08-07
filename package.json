@@ -94,6 +94,11 @@
 							"//cake/build"
 						],
 						"description": "Add hidden dependencies here to avoid checking them (buildozer won't remove them, so this primarily influences the UI)"
+					},
+					"bazel-import.bazelShutdown": {
+						"type": "boolean",
+						"default": false,
+						"description": "Restart bazel server on activation"
 					}
 				}
 			}

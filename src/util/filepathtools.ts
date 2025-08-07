@@ -4,6 +4,7 @@ import * as path from 'path';
 import { filePathToTargetPath } from './targettools';
 import { Cache } from '../model/basecache';
 import { showErrorMessage } from '../userinteraction';
+import { homedir } from 'os';
 
 const tsExtension = vscode.extensions.getExtension('vscode.typescript-language-features');
 let active = true; 
@@ -128,3 +129,8 @@ export const getBuildTargetFromFilePath = (importPath: string, currentFile: vsco
     }
     return target;
 };
+
+export function getRoot() {
+    const cwd = path.join(homedir(), '/lucid/main/'); // TODO get root; 
+    return cwd;
+}

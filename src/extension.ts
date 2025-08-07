@@ -6,6 +6,7 @@ import { uriToBuild } from './util/filepathtools';
 import { packageTooLarge } from './util/packagetools';
 import { removeDeps } from './groups/remove';
 import { addDeps } from './groups/add';
+import { shutdownBazelHard } from './util/exectools';
 import { onCreateOrDeleteFile } from './groups/file';
 
 export const STATUS_BAR_COMMAND_ID = "bazel-import.fixDeps";
@@ -56,8 +57,9 @@ export async function activate(context: vscode.ExtensionContext) {
         fileCreationListener, 
         fileDeletionListener
     );
-    
-    context.subscriptions.push(bazelCommand, changeEditorListener, changeTextListener, activeStatusBarItem, statusBarCommand);
+    if (vscode.workspace.getConfiguration('bazel-import').bazelShutdown) {
+    await shutdownBazelHard();
+    }
 
     await updateActiveEditor(vscode.window.activeTextEditor);
 }
