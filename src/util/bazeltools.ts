@@ -14,7 +14,7 @@ export async function getTargetInfosFromFilePaths(filePaths: string[]): Promise<
     const relativePaths = filePaths.map(fsToWsPath).join(' + ');
     const output = "--output streamed_jsonproto";
     const cwd = getRoot();
-    const command = `bazel query 'kind(ts_library, ${relativePaths})' ${output}`;
+    const command = `bazel query 'kind("(ts|js)_library", ${relativePaths})' ${output}`;
     const targetInfos = new Map<string, TargetInfo>();
     const targetMap = new Map<string, string>();
     try {
@@ -60,7 +60,7 @@ export async function streamTargetInfosFromFilePaths(filePaths: string[]) {
     const command = 'bazel';
     const args = [
         'query',
-        `kind(ts_library, same_pkg_direct_rdeps(${relativePaths}))`,
+        `kind("(ts|js)_library", same_pkg_direct_rdeps(${relativePaths}))`,
         '--output',
         'streamed_jsonproto'
     ];
@@ -94,7 +94,6 @@ export async function streamTargetInfosFromFilePaths(filePaths: string[]) {
     }
 }
 
-
 // Sets a value on a map without overwriting
 export function setSafe<K,V>(map: Map<K,V>, key: K, value: V) {
     if (map.has(key)) {
@@ -104,11 +103,10 @@ export function setSafe<K,V>(map: Map<K,V>, key: K, value: V) {
     }
 }
 
-
 export async function getTargetsFromFilePaths(filePaths: string[]): Promise<string[]> {
     const relativePaths = filePaths.map(fsToRelativePath).join(' + ');
     const cwd = getRoot();
-    const command = `bazel query 'kind(ts_library, same_pkg_direct_rdeps(${relativePaths}))'`;
+    const command = `bazel query 'kind("(ts|js)_library", same_pkg_direct_rdeps(${relativePaths}))'`;
 
     try {
         const targetString = await executeCommand(command, cwd);
