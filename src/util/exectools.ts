@@ -1,14 +1,17 @@
-import { exec, ExecException } from 'child_process';
+import { exec, ExecException, spawn } from 'child_process';
 import * as vscode from 'vscode';
 import {showDismissableFileMessage, showDismissableMessage, showErrorMessage} from '../userinteraction';
+import * as readline from 'readline';
 import * as path from 'path';
+import { getRoot } from './filepathtools';
 
 export async function getBazelDeps(target: string, cwd: string, excludedTargets?: string[]): Promise<string> {
-    let command = `bazel query "labels(deps, ${target})"`;
+    const command = `bazel query "labels(deps, ${target})"`;
 
     if (excludedTargets && excludedTargets.length > 0) {
         const excludePart = excludedTargets.map(path => `except ${path}/...`).join(' ');
         const excludeCommand = `${command} ${excludePart}`;
+        console.debug("Command with excludes", excludeCommand);
         try {
             return await executeCommand(excludeCommand, cwd);
         }
@@ -22,9 +25,10 @@ export async function getBazelDeps(target: string, cwd: string, excludedTargets?
     return await executeCommand(command, cwd);
 }
 
-export async function executeCommand(command: string, cwd: string): Promise<string> {
+export async function executeCommand(command: string, cwd?: string): Promise<string> {
+    const options = cwd ? {cwd: cwd} : {};
     return new Promise((resolve, reject) => {
-        exec(command, {cwd: cwd}, (error, stdout, stderr) => {
+        exec(command, options, (error, stdout, stderr) => {
             if (error) {
                 return reject({
                     "error": error,
@@ -35,6 +39,49 @@ export async function executeCommand(command: string, cwd: string): Promise<stri
                 console.debug(`stderr: ${stderr}`);
             }
             resolve(stdout);
+        });
+    });
+}
+
+// Define a type for the callback function for clarity
+type RuleHandler = (rule: any) => void;
+
+/**
+ * Executes a command and processes its stdout stream line-by-line,
+ * parsing each line as JSON and calling a handler.
+ */
+export async function processCommandStream(command: string, args: string[], onRule: RuleHandler, cwd?: string): Promise<void> {
+    const options = cwd ? { cwd } : {};
+
+    return new Promise((resolve, reject) => {
+        const child = spawn(command, args, options);
+        let stderr = '';
+        
+        // Create a readline interface to handle lines and backpressure correctly
+        const rl = readline.createInterface({ input: child.stdout });
+
+        rl.on('line', (line) => {
+            if (line) {
+                try {
+                    onRule(JSON.parse(line));
+                } catch (e) {
+                    console.error("Failed to parse JSON line:", line);
+                }
+            }
+        });
+
+        child.stderr.on('data', (data) => {
+            stderr += data.toString();
+        });
+
+        child.on('error', (error) => reject({ error, stderr }));
+
+        child.on('close', (code) => {
+            if (code !== 0) {
+                const error = new Error(`Command failed with exit code ${code}`);
+                return reject({ error, stderr });
+            }
+            resolve();
         });
     });
 }
@@ -94,3 +141,39 @@ export async function updateBuildDeps(
     return false;
 }
 
+/**
+ * Attempts to shut down Bazel, first gracefully, then forcefully if necessary.
+ * @param {number} timeoutMs - The time to wait for a graceful shutdown before forcing it.
+ */
+export async function shutdownBazelHard(timeoutMs = 2000) {
+    try {
+        // Create a timeout promise
+        const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Graceful shutdown timed out')), timeoutMs)
+        );
+
+        // Race the shutdown command against the timeout
+        await Promise.race([
+            executeCommand('bazel shutdown', getRoot()),
+            timeoutPromise
+        ]);
+
+        return;
+
+    } catch (error) {
+        console.warn(`Graceful shutdown failed: ${error}. Attempting forceful kill.`);
+
+        try {
+            const pid = await executeCommand('bazel info server_pid', getRoot());
+            if (pid && pid.trim()) {
+                await executeCommand(`kill -9 ${pid.trim()}`);
+                console.debug(`Successfully killed Bazel server with PID: ${pid.trim()}`);
+            } else {
+                console.debug('Bazel server process not found.');
+            }
+        } catch (killError) {
+            console.error(`Failed to forcefully kill Bazel: ${killError}`);
+            throw killError;
+        }
+    }
+}

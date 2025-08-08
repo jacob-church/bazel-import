@@ -6,6 +6,8 @@ import { uriToBuild } from './util/filepathtools';
 import { packageTooLarge } from './util/packagetools';
 import { removeDeps } from './groups/remove';
 import { addDeps } from './groups/add';
+import { shutdownBazelHard } from './util/exectools';
+import { onCreateOrDeleteFile } from './groups/file';
 
 export const STATUS_BAR_COMMAND_ID = "bazel-import.fixDeps";
 export const BUILD_FILE = vscode.workspace.getConfiguration('bazel-import').buildFile;
@@ -37,12 +39,29 @@ export async function activate(context: vscode.ExtensionContext) {
             removeDeps(changeEvent, savedActiveFile);
             ActiveFile.data.documentState = changeEvent.document.getText(); 
         }
-        addDeps(changeEvent, savedActiveFile);
+        if (vscode.workspace.getConfiguration('bazel-import').enableAddition) {
+            addDeps(changeEvent, savedActiveFile);
+        }
     });
+
+    const fileCreationListener = vscode.workspace.onDidCreateFiles(onCreateOrDeleteFile);
+
+    const fileDeletionListener = vscode.workspace.onDidDeleteFiles(onCreateOrDeleteFile);
 
     const statusBarCommand = activateStatusBarCommand();
 
-    context.subscriptions.push(bazelCommand, changeEditorListener, changeTextListener, activeStatusBarItem, statusBarCommand);
+    context.subscriptions.push(
+        bazelCommand, 
+        changeEditorListener, 
+        changeTextListener, 
+        activeStatusBarItem, 
+        statusBarCommand, 
+        fileCreationListener, 
+        fileDeletionListener
+    );
+    if (vscode.workspace.getConfiguration('bazel-import').bazelShutdown) {
+        await shutdownBazelHard();
+    }
 
     await updateActiveEditor(vscode.window.activeTextEditor);
 }

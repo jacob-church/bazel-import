@@ -1,11 +1,15 @@
 import * as vscode from 'vscode';
-import {showDismissableFileMessage, showDismissableMessage} from '../userinteraction';
+import {showDismissableFileMessage, showDismissableMessage, showErrorMessage} from '../userinteraction';
 import {ActiveFile, ActiveFileData} from '../model/activeFile';
-import {getBuildTargetsFromDeletions} from '../util/eventtools';
+import {getDeletedImportPaths} from '../util/eventtools';
 import {BUILD_FILE, ExtensionState, setExtensionState} from '../extension';
-import { getBuildTargetsFromPackage } from '../util/packagetools';
+import { getImportPathsFromPackage } from '../util/packagetools';
 import { uriEquals } from '../util/uritools';
 import { updateBuildDeps, handleBuildozerError } from '../util/exectools';
+import { fsToWsPath } from '../util/filepathtools';
+import { streamTargetInfosFromFilePaths } from '../util/bazeltools';
+import { TargetInfo } from '../model/bazelquery/targetinfo';
+import { FilesContext } from '../model/bazelquery/filescontext';
 
 // DELETION
 export async function removeDeps(changeEvent: vscode.TextDocumentChangeEvent, changedFile: ActiveFileData) {
@@ -15,32 +19,37 @@ export async function removeDeps(changeEvent: vscode.TextDocumentChangeEvent, ch
 
     setExtensionState(ExtensionState.waiting);
 
-    // Find the build file(s) for deleted imports
-    const deletedDeps: Set<string> = getBuildTargetsFromDeletions(changedFile.documentState, changeEvent);
-    if (deletedDeps.size === 0) {
+    // Find the file paths for deleted imports
+    const deletedImports = getDeletedImportPaths(changedFile.documentState, changeEvent);
+    if (deletedImports.length === 0) {
         return;
     }
-    deletedDeps.delete(changedFile.target);
 
-    if (deletedDeps.size === 0) {
-        showDismissableMessage("Bazel deps not removed (deleted import is in package)");
-        return; 
+    const remainingImports = await getImportPathsFromPackage(changedFile.packageSources);
+
+    const context = await streamTargetInfosFromFilePaths(Array.from(new Set(deletedImports.concat(remainingImports))));
+    if (context.empty()) {
+        showErrorMessage("Failed to load context");
+        return;
     }
 
-    // Evaluate remaining imports to see if they depend on any of the build files from the deleted imports //TODO Factor this out
-    const remainingDependencies = await getBuildTargetsFromPackage(changedFile.packageSources);
+    const deletionTargets = pathsToTargets(deletedImports, context);
 
-    const targetDepsToRemove = validateDeletions(remainingDependencies, deletedDeps);
+    const remainingTargets = pathsToTargets(remainingImports, context);
+
+    // Evaluate remaining imports to see if they depend on any of the build files from the deleted imports //TODO Factor this out
+    
+    const targetDepsToRemove = validateDeletions(remainingTargets, deletionTargets);
 
     // Step 4: If there are build files left, removed those dependencies from the target BUILD.bazel
     try {
         const didUpdate = await updateBuildDeps({
-            removeDeps: targetDepsToRemove,
+            removeDeps: Array.from(targetDepsToRemove),
             fileUri: changeEvent.document.uri,
             buildTarget: changedFile.target
         });
         if (didUpdate) {
-            showDismissableFileMessage(`${targetDepsToRemove.length} dep(s) removed from ${BUILD_FILE}`, changedFile.buildUri);
+            showDismissableFileMessage(`${targetDepsToRemove.size} dep(s) removed from ${BUILD_FILE}`, changedFile.buildUri);
         } else {
             showDismissableMessage("Bazel deps not removed (dependency still exists)");
         }
@@ -55,14 +64,27 @@ export async function removeDeps(changeEvent: vscode.TextDocumentChangeEvent, ch
     setExtensionState(ExtensionState.ready);   
 }
 
-function validateDeletions(remainingDependencies: string[], deletedImports: Set<string>): string[] {
-    for (const target of remainingDependencies) {
-        if (deletedImports.delete(target)) {
-            console.debug(`${target} dep still exists\n`);
+
+export function pathsToTargets(importPaths: string[], context: FilesContext<string,string,TargetInfo>): Set<string> {
+    const targets = new Set<string>();
+    for (const importPath of importPaths) {
+        const wsPath = fsToWsPath(importPath);
+        const target = context.getTarget(wsPath);
+        if (target !== undefined) {
+            targets.add(target);
+        }
+    }
+    return targets;
+}
+
+function validateDeletions(remainingImports: Iterable<string>, deletedImports: Set<string>): Set<string> {
+    for (const imp of remainingImports) {
+        if (deletedImports.delete(imp)) {
+            console.debug(`${imp} dep still exists\n`);
         } 
         if (deletedImports.size === 0) {
             break; 
         }
     }
-    return Array.from(deletedImports);
+    return deletedImports;
 }

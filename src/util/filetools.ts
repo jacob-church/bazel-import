@@ -1,26 +1,26 @@
 import * as vscode from 'vscode';
-import { getBuildTargetFromFilePath } from './filepathtools';
+import { importToFullPath } from './filepathtools';
 
 
 const EXTERNAL_TARGETS = vscode.workspace.getConfiguration('bazel-import').externalTargets;
 
 /**
- * Gets the build dependencies of a file defined by a vscode.Uri
+ * Gets the full paths of a file's imports
  * @param fileUri the file to examine
- * @returns the build targets of the file's dependencies
+ * @returns the file path of the file's imports
 */
-export async function getBuildTargetsFromFile(fileUri: vscode.Uri) {
+export async function getFullPathsFromFile(fileUri: vscode.Uri) {
     const file = await vscode.workspace.openTextDocument(fileUri); 
     const fileText = file!.getText(); 
     
-    const targets = getTargetsFromTextAndFile(fileText, fileUri);
-    return targets;
+    const filePaths = getFullImportPathsFromTextAndFile(fileText, fileUri);
+    return filePaths;
 };
 
-export function getTargetsFromTextAndFile(text: string, fileUri: vscode.Uri) {
+export function getFullImportPathsFromTextAndFile(text: string, fileUri: vscode.Uri) {
     const importMatches = getImportsFromText(text);
-    const targets = getTargetsFromImports(importMatches, fileUri);
-    return targets;
+    const importUris = getFullPathFromImports(importMatches, fileUri);
+    return importUris;
 }
 
 function getImportsFromText(fileText: string): RegExpMatchArray[] {
@@ -28,28 +28,14 @@ function getImportsFromText(fileText: string): RegExpMatchArray[] {
     return Array.from(fileText.matchAll(query));
 };
 
-function getTargetsFromImports(importMatches: RegExpMatchArray[], fileUri: vscode.Uri): string[] {
-    const targets: string[] = [];
+function getFullPathFromImports(importMatches: RegExpMatchArray[], fileUri: vscode.Uri): string[] {
+    const paths: string[] = [];
     for (const match of importMatches) {
-        let isExternalTarget = false;
-        for (const [key, value] of Object.entries(EXTERNAL_TARGETS)) {
-            if (match[0].includes(key)) {
-                targets.push(value as string);
-                isExternalTarget = true;
-                break;
-            }
-        }
-        if (isExternalTarget) {
-            continue;
-        }
-
-        const searchString = "from \'";
-        const filePathIndex = match[0].indexOf(searchString) + searchString.length; 
-        const filePath = match[0].slice(filePathIndex, match[0].length - 2);
+        const filePath = matchToPath(match);
         try {
-            const [buildTarget,] = getBuildTargetFromFilePath(filePath, fileUri) ?? [undefined, undefined];
-            if (buildTarget !== undefined) {
-                targets.push(buildTarget);
+            const importUri = importToFullPath(fileUri, filePath);
+            if (importUri !== undefined) {
+                paths.push(importUri.replace('bazel-out/k8-fastbuild/bin/', ''));
             }
         }
         catch (error) {
@@ -57,6 +43,13 @@ function getTargetsFromImports(importMatches: RegExpMatchArray[], fileUri: vscod
             console.error(error);
         }
     }
-    return targets;
+    return paths;
 };
+
+function matchToPath(match: RegExpMatchArray) {
+    const searchString = "from \'";
+    const filePathIndex = match[0].indexOf(searchString) + searchString.length;
+    const filePath = match[0].slice(filePathIndex, match[0].length - 2);
+    return filePath;
+}
 

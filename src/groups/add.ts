@@ -1,37 +1,50 @@
 import * as vscode from 'vscode';
-import {showDismissableFileMessage} from '../userinteraction';
+import {showDismissableFileMessage, showErrorMessage} from '../userinteraction';
 import {handleBuildozerError, updateBuildDeps} from '../util/exectools';
 import {ActiveFileData} from '../model/activeFile';
-import {uriToBuild} from '../util/filepathtools';
-import {getBuildTargetsFromAdditions} from '../util/eventtools';
+import {fsToWsPath, uriToBuild} from '../util/filepathtools';
+import {getAddedImportPaths} from '../util/eventtools';
 import {BUILD_FILE} from '../extension';
 import { uriEquals } from '../util/uritools';
+import { streamTargetInfosFromFilePaths } from '../util/bazeltools';
+import { pathsToTargets } from './remove';
 
 // ADDITION
 export async function addDeps(changeEvent: vscode.TextDocumentChangeEvent, changedFile: ActiveFileData | undefined) {    
     let buildFileUri: vscode.Uri | undefined; // let's assert that the changeEvent matches the currently open text editor; that will filter out changes that come from other sources
     
     // Step 1: Determine the current build target (e.g. where are we adding new dependencies to?)
-    let currentTargetPair: [string, vscode.Uri] | undefined;
+    let buildUri: vscode.Uri | undefined;
     if (changedFile && uriEquals(changeEvent.document.uri, changedFile.uri)) {
-        currentTargetPair = [changedFile.target, changedFile.buildUri];
+        buildUri = changedFile.buildUri; // This should be accurate though
     } else {
-        currentTargetPair = uriToBuild(changeEvent.document.uri);
+        buildUri = uriToBuild(changeEvent.document.uri)?.[1] ?? undefined;
     }
-    if (currentTargetPair === undefined) {
+    if (buildUri === undefined) {
         return;
     }
-    
-    const currentTarget = currentTargetPair[0];
-    buildFileUri = currentTargetPair[1];
 
     // Step 2: Get the build targets from the added imports
-    const targets = getBuildTargetsFromAdditions(changeEvent);
-    targets.delete(currentTarget);
+    const addedImports = getAddedImportPaths(changeEvent); 
+    if (addedImports.length === 0) {
+        return;
+    }
+    console.debug("Added Targets", addedImports);
+
+    const filePath = changeEvent.document.uri.fsPath;
+    const context = await streamTargetInfosFromFilePaths(addedImports.concat(filePath));
+    
+    const targets = pathsToTargets(addedImports, context);
+
     if (targets.size === 0) {
         return;
     }
-    console.debug("Added Targets", targets);
+    const wsPath = fsToWsPath(filePath);
+    const currentTarget = context.getTarget(wsPath); 
+    if (currentTarget === undefined) {
+        showErrorMessage(`Failed to find target for ${wsPath}`);
+        return;
+    }
 
     // Step 3: Do the update
     try {
