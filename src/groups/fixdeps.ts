@@ -119,7 +119,7 @@ export async function runDepsFix(file: vscode.Uri | undefined) {
             let data: ActiveData | undefined = PkgCache.get(buildUri.toString());
             if (data === undefined) {
                 // TODO: consider putting this in a method and use in active.ts
-                const [pkgcontext, packageSources, name] = await loadPackageSources(file);
+                const [pkgcontext, packageSources, name] = await loadPackageSources(file, buildUri);
                 data = {
                     context: pkgcontext,
                     packageSources: packageSources,

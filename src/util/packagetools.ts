@@ -36,7 +36,9 @@ async function getSubDirectorySources(uri: vscode.Uri): Promise<vscode.Uri[]> {
     return subTargets; 
 }
 
-
+/**
+ * @deprecated Gets package sources (i.e., under same build file), but not target sources
+ */
 export async function getPackageSourceUris(uri: vscode.Uri): Promise<[vscode.Uri[], string, vscode.Uri] | undefined> {
     let currentUri = uri; 
     const targetUris: vscode.Uri[] = new Array(); 

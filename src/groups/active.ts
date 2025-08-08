@@ -42,7 +42,7 @@ export async function updateActiveEditor(editor: vscode.TextEditor | undefined) 
     
     // This build target is no longer valid (uriToBuild should use another mechanism)
     // BUT this is useful for determining whether or not an active file is actually in a package
-    const [buildTarget, buildUri] = uriToBuild(document.uri) ?? [, ];
+    const [, buildUri] = uriToBuild(document.uri) ?? [, ];
 
     if (buildUri === undefined) {
         updateStatusBar(
@@ -57,22 +57,6 @@ export async function updateActiveEditor(editor: vscode.TextEditor | undefined) 
         '$(loading~spin)'
     );
 
-    // This is not valid anymore because files can be in the same directory but not the same target
-    // HOWEVER, the logic may be reproduceable
-    // const newDir = handleActiveFileDirectoryChange(document);
-    // if (newDir === undefined) {
-    //     setDeletionStatus(fileName);
-    //     setExtensionState(ExtensionState.active);
-    //     return; 
-    // }
-    // ADD target map to active file cache 
-
-    // TODO: 3 kinds of paths (consistent naming):
-    /**
-     * 1. fsPath
-     * 2. //relativePath wrPath
-     * 3. relativePath
-     */
 
     // Needed info: (key is uri string?)
     const value = cache.get(buildUri.toString());
@@ -94,8 +78,8 @@ export async function updateActiveEditor(editor: vscode.TextEditor | undefined) 
         };
     }
     else {
-        console.debug("Cache miss", buildTarget);
-        const [context, packageSources, target] = await loadPackageSources(document.uri); 
+        console.debug("Cache miss", buildUri.toString());
+        const [context, packageSources, target] = await loadPackageSources(document.uri, buildUri); 
         ActiveFile.data = {
             packageSources: packageSources,
             buildUri: buildUri,
@@ -139,7 +123,6 @@ function validatePackageSize() {
     }
 }
 
-
 function uriToPkgString(uri: vscode.Uri) {
     const fsPath = uri.fsPath;
     const pkgDir = path.dirname(fsPath);
@@ -149,8 +132,8 @@ function uriToPkgString(uri: vscode.Uri) {
     return pkgDir + ':*';
 }
 
-export async function loadPackageSources(fileUri: vscode.Uri): Promise<[FilesContext<string,string,TargetInfo>, vscode.Uri[], string]> {
-    const pkgString = uriToPkgString(fileUri);
+export async function loadPackageSources(fileUri: vscode.Uri, buildUri: vscode.Uri): Promise<[FilesContext<string,string,TargetInfo>, vscode.Uri[], string]> {
+    const pkgString = uriToPkgString(buildUri);
     const context = await streamTargetInfosFromFilePaths([pkgString]);
 
     const wsPath = fsToWsPath(fileUri.fsPath);
