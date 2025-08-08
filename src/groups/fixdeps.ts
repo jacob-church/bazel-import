@@ -12,7 +12,7 @@ import { pathsToTargets } from './remove';
 
 const CURRENT_FILE: string = '$(file) Current file';
 const SELECT_FILE: string = '$(file-directory) Select a file';
-const EXCLUDED_DEPENDENCIES = vscode.workspace.getConfiguration('bazel-import').excludeDependencies ?? undefined;
+const EXCLUDED_DEPENDENCIES: string[] = vscode.workspace.getConfiguration('bazel-import').get("excludeDependencies") ?? [];
 
 
 export async function chooseFileToFixDeps(file?: vscode.Uri) {
@@ -149,7 +149,7 @@ export async function runDepsFix(file: vscode.Uri | undefined) {
             progress.report({message: "comparing dependencies and modifying build file"});
             const removeDeps: string[] = [];
             for (const target of preFixDeps) {
-                if (!currentDependencyTargets.delete(target)) {
+                if (!currentDependencyTargets.delete(target) && isIncluded(target)) {
                     removeDeps.push(target);
                 }
             }
@@ -170,3 +170,11 @@ export async function runDepsFix(file: vscode.Uri | undefined) {
     });
 };
 
+function isIncluded(dep: string) {
+    for (const exclusion of EXCLUDED_DEPENDENCIES) {
+        if (dep.includes(exclusion)) {
+            return false; 
+        }
+    }
+    return true;
+}

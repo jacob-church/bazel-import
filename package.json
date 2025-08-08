@@ -92,7 +92,6 @@
 					"bazel-import.excludeDependencies": {
 						"type": [
 							"array",
-							"string",
 							"null"
 						],
 						"default": [
