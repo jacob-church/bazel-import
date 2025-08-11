@@ -117,8 +117,15 @@ export function wsToFsPath(wsPath: string): string {
 }
 
 export function getRoot() {
-    const cwd = path.join(homedir(), '/lucid/main/'); // TODO get root; 
-    return cwd;
+    const wsd = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
+
+    if (wsd !== undefined) {
+        return wsd;
+    }
+    
+    const rootFromConfig = getConfig("defaultRoot"); 
+    const root = path.join(homedir(), rootFromConfig);
+    return root; 
 }
 
 export function pathsToTargets(importPaths: string[], context: FilesContext<string, string, TargetInfo>): Set<string> {

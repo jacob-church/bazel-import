@@ -3,6 +3,7 @@ import { importToFs } from '../path/filepathtools';
 import { getConfig } from '../../config/config';
 
 const EXTERNAL_TARGETS = getConfig("externalTargets");
+const IMPORT_REPLACEMENTS = getConfig("importPathReplacements");
 
 /**
  * Gets the full paths of a file's imports
@@ -41,7 +42,7 @@ function getFullPathFromImports(importMatches: RegExpMatchArray[], fileUri: vsco
         try {
             const importUri = importToFs(fileUri, filePath);
             if (importUri !== undefined) {
-                paths.push(importUri.replace('bazel-out/k8-fastbuild/bin/', '')); // TODO: fixme
+                paths.push(importPathReplace(importUri));
             }
         }
         catch (error) {
@@ -66,4 +67,13 @@ function filterExternalTargets(filePath: string) {
         }
     }
     return undefined; 
+}
+
+function importPathReplace(importPath: string) {
+    for (const find of Object.keys(IMPORT_REPLACEMENTS)) {
+        if (importPath.includes(find)) {
+            return importPath.replace(find, IMPORT_REPLACEMENTS[find]);
+        }
+    }
+    return importPath; 
 }

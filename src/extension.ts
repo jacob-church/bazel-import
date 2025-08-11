@@ -105,7 +105,6 @@ function activateStatusBarCommand(): vscode.Disposable {
     return vscode.commands.registerCommand(FIX_DEPS_COMMAND, chooseFileToFixDeps);
 }
 
-// TODO: cleanup listeners
 export function deactivate() {
 
 }

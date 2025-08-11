@@ -113,6 +113,18 @@
 						"type": "string",
 						"default": "(ts|js)_library",
 						"description": "Specify the bazel library type(s) that you want to include in dependency analysis."
+					}, 
+					"bazel-import.importPathReplacements": {
+						"type": "object",
+						"default": {
+							"bazel-out/k8-fastbuild/bin/": ""
+						},
+						"description": "Replaces import paths that include the keys with the values"
+					},
+					"bazel-import.defaultRoot": {
+						"type": "string",
+						"default": "",
+						"description": "Sets the default root directory from the home directory if a workspace is not found"
 					}
 
 				}
