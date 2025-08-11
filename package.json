@@ -121,13 +121,14 @@
 	},
 	"scripts": {
 		"vscode:prepublish": "npm run compile",
-		"compile": "tsc -p ./",
-		"watch": "tsc -watch -p ./",
+		"compile": "tsc -p ./tsconfig.json",
+		"compile:scripts": "tsc -p ./scripts/tsconfig.json",
+		"watch": "tsc -watch -p ./tsconfig.json",
 		"pretest": "npm run compile && npm run lint",
 		"lint": "eslint src --ext ts",
 		"test": "vscode-test",
 		"clean": "rm -r ./out",
-		"config": "node scripts/configupdate.js"
+		"config": "node out/scripts/configupdate.js"
 	},
 	"devDependencies": {
 		"@types/mocha": "^9.1.0",

@@ -9,7 +9,7 @@ import * as path from 'path';
 function generateConfigKeys() {
     // --- Path Configuration ---
     // The script is in /scripts, so we go up one level to the project root.
-    const projectRoot = path.join(__dirname, '..');
+    const projectRoot = path.join(__dirname, '../../');
     const packageJsonPath = path.join(projectRoot, 'package.json');
     const outputDir = path.join(projectRoot, 'src/config');
     const outputFile = path.join(outputDir, 'generated.ts');
@@ -28,7 +28,7 @@ function generateConfigKeys() {
     const configPrefix = 'bazel-import.';
 
     // Find the configuration properties in package.json
-    const configProperties = packageJSON.contributes?.configuration?.find(c => c.title === 'Bazel Import')?.properties;
+    const configProperties = packageJSON.contributes?.configuration?.find((c: { title: string; }) => c.title === 'Bazel Import')?.properties;
 
     if (!configProperties) {
         console.error('Could not find configuration properties in package.json.');
