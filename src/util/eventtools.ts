@@ -35,21 +35,23 @@ function getFullPathsFromEvent(
     event: vscode.TextDocumentChangeEvent, 
     textSrc: (change: vscode.TextDocumentContentChangeEvent) => string, 
     isValid: (change: vscode.TextDocumentContentChangeEvent) => boolean
-) {
+): [string[], string[]] {
     const changes = event.contentChanges;
 
     const paths = [];
+    const externalTargets = []
 
     for (const change of changes) {
         if (!isValid(change)) {
             continue;
         }
 
-        const importPaths = getFullImportPathsFromTextAndFile(
+        const [importPaths, externalTarget] = getFullImportPathsFromTextAndFile(
             textSrc(change),
             event.document.uri
         );
         paths.push(...importPaths);
+        externalTargets.push(...externalTarget);
     }
-    return paths;
+    return [paths, externalTargets];
 }

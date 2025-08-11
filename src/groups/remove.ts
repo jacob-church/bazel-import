@@ -21,12 +21,12 @@ export async function removeDeps(changeEvent: vscode.TextDocumentChangeEvent, ch
     setExtensionState(ExtensionState.waiting);
 
     // Find the file paths for deleted imports
-    const deletedImports = getDeletedImportPaths(changedFile.documentState, changeEvent);
-    if (deletedImports.length === 0) {
+    const [deletedImports, deletedExternal] = getDeletedImportPaths(changedFile.documentState, changeEvent);
+    if (deletedImports.length === 0 && deletedExternal.length === 0) {
         return;
     }
 
-    const remainingImports = await getImportPathsFromPackage(changedFile.packageSources);
+    const [remainingImports, remainingExternal] = await getImportPathsFromPackage(changedFile.packageSources);
 
     const context = await streamTargetInfosFromFilePaths(Array.from(new Set(deletedImports.concat(remainingImports))));
     if (context.empty()) {
@@ -35,12 +35,15 @@ export async function removeDeps(changeEvent: vscode.TextDocumentChangeEvent, ch
     }
 
     const deletionTargets = pathsToTargets(deletedImports, context);
+    deletedExternal.forEach(t => deletionTargets.add(t));
 
     const remainingTargets = pathsToTargets(remainingImports, context);
+    remainingExternal.forEach(t => remainingTargets.add(t));
 
     // Evaluate remaining imports to see if they depend on any of the build files from the deleted imports //TODO Factor this out
     
     const targetDepsToRemove = validateDeletions(remainingTargets, deletionTargets);
+    console.debug('Removing deps', targetDepsToRemove);
 
     // Step 4: If there are build files left, removed those dependencies from the target BUILD.bazel
     try {
@@ -65,7 +68,7 @@ export async function removeDeps(changeEvent: vscode.TextDocumentChangeEvent, ch
     setExtensionState(ExtensionState.ready);   
 }
 
-
+// TODO: move this
 export function pathsToTargets(importPaths: string[], context: FilesContext<string,string,TargetInfo>): Set<string> {
     const targets = new Set<string>();
     for (const importPath of importPaths) {

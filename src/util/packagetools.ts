@@ -77,8 +77,15 @@ export async function getPackageSourceUris(uri: vscode.Uri): Promise<[vscode.Uri
     }
 }
 
-export async function getImportPathsFromPackage(packageSources: vscode.Uri[]) {
-    return (await Promise.all(packageSources.map(async uri => getFullPathsFromFile(uri!)))).flat();
+export async function getImportPathsFromPackage(packageSources: vscode.Uri[]): Promise<[string[], string[]]> {
+    const importsAndTargets = await Promise.all(packageSources.map(async uri => getFullPathsFromFile(uri!)));
+    const externalTargets = [];
+    const paths = [];
+    for (const [path, target] of importsAndTargets) {
+        externalTargets.push(...target);
+        paths.push(...path);
+    }
+    return [paths, externalTargets];
 } 
 
 export function packageTooLarge(): boolean {

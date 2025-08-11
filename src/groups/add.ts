@@ -25,16 +25,18 @@ export async function addDeps(changeEvent: vscode.TextDocumentChangeEvent, chang
     }
 
     // Step 2: Get the build targets from the added imports
-    const addedImports = getAddedImportPaths(changeEvent); 
-    if (addedImports.length === 0) {
+    const [addedImports, externalTargets] = getAddedImportPaths(changeEvent); 
+    if (addedImports.length === 0 && externalTargets.length === 0) {
         return;
     }
-    console.debug("Added Targets", addedImports);
-
+    
     const filePath = changeEvent.document.uri.fsPath;
     const context = await streamTargetInfosFromFilePaths(addedImports.concat(filePath));
     
     const targets = pathsToTargets(addedImports, context);
+    externalTargets.forEach(t => targets.add(t));
+    
+    console.debug("Added Targets", targets);
 
     if (targets.size === 0) {
         return;

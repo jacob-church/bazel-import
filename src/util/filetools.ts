@@ -1,8 +1,9 @@
 import * as vscode from 'vscode';
 import { importToFullPath } from './filepathtools';
+import { getConfig } from '../config/config';
 
 
-const EXTERNAL_TARGETS = vscode.workspace.getConfiguration('bazel-import').externalTargets;
+const EXTERNAL_TARGETS = getConfig("externalTargets");
 
 /**
  * Gets the full paths of a file's imports
@@ -17,10 +18,10 @@ export async function getFullPathsFromFile(fileUri: vscode.Uri) {
     return filePaths;
 };
 
-export function getFullImportPathsFromTextAndFile(text: string, fileUri: vscode.Uri) {
+export function getFullImportPathsFromTextAndFile(text: string, fileUri: vscode.Uri): [string[], string[]] {
     const importMatches = getImportsFromText(text);
-    const importUris = getFullPathFromImports(importMatches, fileUri);
-    return importUris;
+    const [importUris, externalTargets] = getFullPathFromImports(importMatches, fileUri);
+    return [importUris, externalTargets];
 }
 
 function getImportsFromText(fileText: string): RegExpMatchArray[] {
@@ -28,14 +29,20 @@ function getImportsFromText(fileText: string): RegExpMatchArray[] {
     return Array.from(fileText.matchAll(query));
 };
 
-function getFullPathFromImports(importMatches: RegExpMatchArray[], fileUri: vscode.Uri): string[] {
+function getFullPathFromImports(importMatches: RegExpMatchArray[], fileUri: vscode.Uri): [string[], string[]] {
     const paths: string[] = [];
+    const externalTargets: string[] = [];
     for (const match of importMatches) {
         const filePath = matchToPath(match);
+        const externalTarget = filterExternalTargets(filePath);
+        if (externalTarget !== undefined) {
+            externalTargets.push(externalTarget); 
+            continue;
+        }
         try {
             const importUri = importToFullPath(fileUri, filePath);
             if (importUri !== undefined) {
-                paths.push(importUri.replace('bazel-out/k8-fastbuild/bin/', ''));
+                paths.push(importUri.replace('bazel-out/k8-fastbuild/bin/', '')); // TODO: fixme
             }
         }
         catch (error) {
@@ -43,7 +50,7 @@ function getFullPathFromImports(importMatches: RegExpMatchArray[], fileUri: vsco
             console.error(error);
         }
     }
-    return paths;
+    return [paths, externalTargets];
 };
 
 function matchToPath(match: RegExpMatchArray) {
@@ -53,3 +60,11 @@ function matchToPath(match: RegExpMatchArray) {
     return filePath;
 }
 
+function filterExternalTargets(filePath: string) {
+    for (const externalTarget of Object.keys(EXTERNAL_TARGETS)) {
+        if (filePath.startsWith(externalTarget)) {
+            return EXTERNAL_TARGETS[externalTarget]; 
+        }
+    }
+    return undefined; 
+}

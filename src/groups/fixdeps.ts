@@ -140,13 +140,16 @@ export async function runDepsFix(file: vscode.Uri | undefined) {
             const preFixDeps = new Set(pkgInfo.deps);
 
             progress.report({message: `finding dependencies for ${data.packageSources.length} source file(s)`});
-            const importPaths = await getImportPathsFromPackage(data.packageSources);
+            const [importPaths, externalTargets] = await getImportPathsFromPackage(data.packageSources);
 
-            const context = await streamTargetInfosFromFilePaths(importPaths);
+            const uniqueImportPaths = Array.from(new Set(importPaths)); 
+            const context = await streamTargetInfosFromFilePaths(uniqueImportPaths);
 
             const currentDependencyTargets = pathsToTargets(importPaths, context);
+            externalTargets.forEach(t => currentDependencyTargets.add(t));
 
             // Needed so it doesn't add self dependency
+            preFixDeps.delete(pkgInfo.name);
             currentDependencyTargets.delete(pkgInfo.name);
             console.debug("New dependencies", currentDependencyTargets);
             if (shouldHalt(currentDependencyTargets.size === 0)) { return; }
