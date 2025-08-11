@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { getConfig } from '../config/config';
 /**
  * Takes the current text changes and reduces them to a list of Uri's to imported dependencies
  * @param positions
@@ -24,7 +25,7 @@ export async function urisFromTextChanges(positions: vscode.Position[], docUri: 
 }
 
 const [SINGLE_LINE_REGEX, END_LINE_REGEX] = pathPrefixRegex();
-const EXTERNAL_TARGETS = vscode.workspace.getConfiguration('bazel-import').externalTargets;
+const EXTERNAL_TARGETS = getConfig("externalTargets");
 
 /**
  * Reduce text changes to the cursor positions that can be used for finding original symbol definitions
@@ -107,12 +108,12 @@ function pathPrefixRegex(): [RegExp, RegExp] {
  * @returns
  */
 function pathPrefixFromConfig(): string {
-    const pathPrefixes = vscode.workspace.getConfiguration('bazel-import').importPathPrefixes;
+    const pathPrefixes = getConfig("importPathPrefixes");
     if (pathPrefixes.length === 0) {
         return '';
     }
 
-    const prefixes = Object.keys(vscode.workspace.getConfiguration('bazel-import').externalTargets);
+    const prefixes = Object.keys(getConfig("externalTargets"));
 
     if (typeof pathPrefixes === 'string') {
         prefixes.push(pathPrefixes);

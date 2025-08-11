@@ -6,6 +6,7 @@ import { filePathToTargetPath } from './targettools';
 import { Cache } from '../model/basecache';
 import { showErrorMessage } from '../userinteraction';
 import { homedir } from 'os';
+import { BUILD_FILE, getConfig } from '../config/config';
 
 const tsExtension = vscode.extensions.getExtension('vscode.typescript-language-features');
 let active = true; 
@@ -15,7 +16,7 @@ if (!tsExtension) {
     active = false; 
 }
 
-let configCache: Cache<string, ts.ParsedCommandLine> = new Cache<string, ts.ParsedCommandLine>(vscode.workspace.getConfiguration('bazel-import').maxCacheSize);
+let configCache: Cache<string, ts.ParsedCommandLine> = new Cache<string, ts.ParsedCommandLine>(getConfig("maxCacheSize"));
 
 export function resolveSpecifierToFilePath(
     hostFileUri: vscode.Uri,
@@ -84,9 +85,6 @@ function getConfiguration(configPath: string): ts.ParsedCommandLine | undefined 
 
     return parsedCommandLine;
 }
-
-const BUILD_FILE = vscode.workspace.getConfiguration('bazel-import').buildFile;
-
 
 export function fpToBuildTarget(fsPath: string) {
     const fileUri = vscode.Uri.file(fsPath);

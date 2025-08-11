@@ -8,13 +8,11 @@ import { removeDeps } from './groups/remove';
 import { addDeps } from './groups/add';
 import { shutdownBazelHard } from './util/exectools';
 import { onCreateOrDeleteFile } from './groups/file';
-
-export const STATUS_BAR_COMMAND_ID = "bazel-import.fixDeps";
-export const BUILD_FILE = vscode.workspace.getConfiguration('bazel-import').buildFile;
-export const TS_LANGUAGE_ID = 'typescript';
+import { getConfig, OPEN_BAZEL_COMMAND, FIX_DEPS_COMMAND } from './config/config';
+import { BAZELSHUTDOWN, ENABLEADDITION, ENABLEDELETION } from './config/generated';
 
 export async function activate(context: vscode.ExtensionContext) {
-    const bazelCommand = vscode.commands.registerCommand('bazel-import.openBazel', async () => {
+    const bazelCommand = vscode.commands.registerCommand(OPEN_BAZEL_COMMAND, async () => {
         const activeUri = vscode.window.activeTextEditor?.document.uri;    
         if (activeUri) {
             const currTargetPair = uriToBuild(activeUri);
@@ -35,11 +33,11 @@ export async function activate(context: vscode.ExtensionContext) {
         // Save the current instance of file so a change in the active file won't break the analysis
         const savedActiveFile = ActiveFile.data;
         // DELETIONS
-        if (savedActiveFile && !packageTooLarge() && vscode.workspace.getConfiguration('bazel-import').enableDeletion) {
+        if (savedActiveFile && !packageTooLarge() && getConfig(ENABLEDELETION)) {
             removeDeps(changeEvent, savedActiveFile);
             ActiveFile.data.documentState = changeEvent.document.getText(); 
         }
-        if (vscode.workspace.getConfiguration('bazel-import').enableAddition) {
+        if (getConfig(ENABLEADDITION)) {
             addDeps(changeEvent, savedActiveFile);
         }
     });
@@ -59,7 +57,7 @@ export async function activate(context: vscode.ExtensionContext) {
         fileCreationListener, 
         fileDeletionListener
     );
-    if (vscode.workspace.getConfiguration('bazel-import').bazelShutdown) {
+    if (getConfig(BAZELSHUTDOWN)) {
         await shutdownBazelHard();
     }
 
@@ -103,9 +101,9 @@ export function updateStatusBar(tooltip: string | vscode.MarkdownString | undefi
 function activateStatusBarCommand(): vscode.Disposable {
     activeStatusBarItem.text = '$(wand)';
     activeStatusBarItem.tooltip = 'Run dependency fixup on a bazel package';
-    activeStatusBarItem.command = STATUS_BAR_COMMAND_ID;
+    activeStatusBarItem.command = FIX_DEPS_COMMAND;
     activeStatusBarItem.show();
-    return vscode.commands.registerCommand(STATUS_BAR_COMMAND_ID, chooseFileToFixDeps);
+    return vscode.commands.registerCommand(FIX_DEPS_COMMAND, chooseFileToFixDeps);
 }
 
 // TODO: cleanup listeners

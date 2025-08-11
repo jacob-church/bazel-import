@@ -115,7 +115,8 @@
 		"pretest": "npm run compile && npm run lint",
 		"lint": "eslint src --ext ts",
 		"test": "vscode-test",
-		"clean": "rm -r ./out"
+		"clean": "rm -r ./out",
+		"config": "node scripts/configupdate.js"
 	},
 	"devDependencies": {
 		"@types/mocha": "^9.1.0",

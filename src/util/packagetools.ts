@@ -4,8 +4,7 @@ import {filePathToTargetPath} from './targettools';
 import {ActiveFile} from '../model/activeFile';
 import {MAX_PKG_SIZE} from '../userinteraction';
 import {getFullPathsFromFile} from './filetools';
-
-const BUILD_FILE_NAME = vscode.workspace.getConfiguration('bazel-import').buildFile;
+import { BUILD_FILE } from '../config/config';
 
 /** 
  * Recursively search down the file tree until a package (i.e., BUILD.bazel file)
@@ -19,7 +18,7 @@ async function getSubDirectorySources(uri: vscode.Uri): Promise<vscode.Uri[]> {
     const files = await vscode.workspace.fs.readDirectory(currentUri);
     
     // Check for build file first so that it returns nothing from a different package
-    if (files.some(([name]) => name === BUILD_FILE_NAME)) {
+    if (files.some(([name]) => name === BUILD_FILE)) {
         return subTargets; 
     }
 
@@ -58,9 +57,9 @@ export async function getPackageSourceUris(uri: vscode.Uri): Promise<[vscode.Uri
             if (type !== vscode.FileType.File) {
                 continue;
             }
-            if (name === BUILD_FILE_NAME) {
+            if (name === BUILD_FILE) {
                 targetPath = filePathToTargetPath(currentUri.fsPath);
-                buildUri = vscode.Uri.joinPath(currentUri, BUILD_FILE_NAME);
+                buildUri = vscode.Uri.joinPath(currentUri, BUILD_FILE);
                 if (!targetPath) {
                     return undefined; 
                 }

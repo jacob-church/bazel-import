@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { fsToWsPath, uriToBuild } from '../util/filepathtools';
-import { BUILD_FILE } from '../extension';
+import { BUILD_FILE, getConfig } from '../config/config';
 import { handleBuildozerError, updateBuildDeps } from '../util/exectools';
 import { showDismissableFileMessage, showDismissableMessage } from '../userinteraction';
 import { getImportPathsFromPackage } from '../util/packagetools';
@@ -12,7 +12,7 @@ import { pathsToTargets } from './remove';
 
 const CURRENT_FILE: string = '$(file) Current file';
 const SELECT_FILE: string = '$(file-directory) Select a file';
-const EXCLUDED_DEPENDENCIES: string[] = vscode.workspace.getConfiguration('bazel-import').get("excludeDependencies") ?? [];
+const EXCLUDED_DEPENDENCIES: string[] = getConfig("excludeDependencies") ?? [];
 
 
 export async function chooseFileToFixDeps(file?: vscode.Uri) {

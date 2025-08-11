@@ -4,7 +4,7 @@ import {handleBuildozerError, updateBuildDeps} from '../util/exectools';
 import {ActiveFileData} from '../model/activeFile';
 import {fsToWsPath, uriToBuild} from '../util/filepathtools';
 import {getAddedImportPaths} from '../util/eventtools';
-import {BUILD_FILE} from '../extension';
+import { BUILD_FILE } from '../config/config';
 import { uriEquals } from '../util/uritools';
 import { streamTargetInfosFromFilePaths } from '../util/bazeltools';
 import { pathsToTargets } from './remove';

@@ -1,6 +1,6 @@
-import * as vscode from 'vscode';
+import { getConfig } from '../config/config';
 
-const TARGET_PREFIXES = vscode.workspace.getConfiguration('bazel-import').targetPrefixes;
+const TARGET_PREFIXES = getConfig("targetPrefixes");
 
 /**
  * @param path e.g. /home/<dev>/lucid/main/<target-prefix>/blah/blah/blah

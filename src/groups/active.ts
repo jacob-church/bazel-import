@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { Cache } from '../model/basecache';
-import {TS_LANGUAGE_ID, ExtensionState, setExtensionState, updateStatusBar} from '../extension';
+import {ExtensionState, setExtensionState, updateStatusBar} from '../extension';
+import { getConfig, MAIN_CONFIG, TS_LANGUAGE_ID } from '../config/config';
 import { ActiveFile } from '../model/activeFile';
 import {MAX_PKG_SIZE, updateMaxPackageSize} from '../userinteraction';
 import * as path from 'path';
@@ -13,9 +14,9 @@ import { FilesContext } from '../model/bazelquery/filescontext';
 export {cache as PkgCache};
 
 const CHANGE_PACKAGE_LIMIT_BUTTON = 'Change max package size';
-const CACHE_SIZE: number = Number(vscode.workspace.getConfiguration('bazel-import').maxCacheSize);
+const CACHE_SIZE: number = Number(getConfig("maxCacheSize"));
 const cache = new Cache<string, ActiveData>(CACHE_SIZE);
-const DELETION_ENABLED = vscode.workspace.getConfiguration('bazel-import').enableDeletion;
+const DELETION_ENABLED = getConfig("enableDeletion");
 
 export interface ActiveData {
     context: FilesContext<string, string, TargetInfo>
@@ -53,7 +54,7 @@ export async function updateActiveEditor(editor: vscode.TextEditor | undefined) 
     }
 
     updateStatusBar(
-        `Loading packages for deletion analysis. Current package size is ${vscode.workspace.getConfiguration('bazel-import').maxPackageSize}`,
+        `Loading packages for deletion analysis. Current package size is ${getConfig("maxPackageSize")}`,
         '$(loading~spin)'
     );
 
