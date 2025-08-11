@@ -21,6 +21,11 @@ export async function chooseFileToFixDeps(file?: vscode.Uri) {
         return;
     }
 
+    if (getConfig("fixDepsOnCurrent")) {
+        runDepsFix(vscode.window.activeTextEditor?.document.uri);
+        return;
+    }
+
     const options: vscode.QuickPickItem[] = [
         {
             label: CURRENT_FILE

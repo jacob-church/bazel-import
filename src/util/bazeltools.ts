@@ -1,9 +1,12 @@
-import * as path from 'path';
+import * as vscode from 'vscode';
 import { executeCommand, processCommandStream } from './exectools';
 import { fsToRelativePath, fsToWsPath, getRoot } from './filepathtools';
 import { FilesContext, PkgContext } from '../model/bazelquery/filescontext';
 import { Attribute } from '../model/bazelquery/attribute';
 import { TargetInfo } from '../model/bazelquery/targetinfo';
+import { getConfig } from '../config/config';
+
+const LIBRARY_REGEX = getConfig("libraryRegex");
 
 /**
  * Prefer streaming the results unless the results are small enough to avoid overflowing the buffer on stdout
@@ -14,7 +17,7 @@ export async function getTargetInfosFromFilePaths(filePaths: string[]): Promise<
     const relativePaths = filePaths.map(fsToWsPath).join(' + ');
     const output = "--output streamed_jsonproto";
     const cwd = getRoot();
-    const command = `bazel query 'kind("(ts|js)_library", ${relativePaths})' ${output}`;
+    const command = `bazel query 'kind("${LIBRARY_REGEX}", ${relativePaths})' ${output}`;
     const targetInfos = new Map<string, TargetInfo>();
     const targetMap = new Map<string, string>();
     try {
@@ -60,7 +63,7 @@ export async function streamTargetInfosFromFilePaths(filePaths: string[]) {
     const command = 'bazel';
     const args = [
         'query',
-        `kind("(ts|js)_library", same_pkg_direct_rdeps(${relativePaths}))`,
+        `kind("${LIBRARY_REGEX}", same_pkg_direct_rdeps(${relativePaths}))`,
         '--output',
         'streamed_jsonproto'
     ];
@@ -106,7 +109,7 @@ export function setSafe<K,V>(map: Map<K,V>, key: K, value: V) {
 export async function getTargetsFromFilePaths(filePaths: string[]): Promise<string[]> {
     const relativePaths = filePaths.map(fsToRelativePath).join(' + ');
     const cwd = getRoot();
-    const command = `bazel query 'kind("(ts|js)_library", same_pkg_direct_rdeps(${relativePaths}))'`;
+    const command = `bazel query 'kind("${LIBRARY_REGEX}", same_pkg_direct_rdeps(${relativePaths}))'`;
 
     try {
         const targetString = await executeCommand(command, cwd);

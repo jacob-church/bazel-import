@@ -103,7 +103,18 @@
 						"type": "boolean",
 						"default": false,
 						"description": "Restart bazel server on activation"
+					},
+					"bazel-import.fixDepsOnCurrent": {
+						"type": "boolean",
+						"default": false,
+						"description": "Automatically run fixDeps on the current file"
+					},
+					"bazel-import.libraryRegex": {
+						"type": "string",
+						"default": "(ts|js)_library",
+						"description": "Specify the bazel library type(s) that you want to include in dependency analysis."
 					}
+
 				}
 			}
 		]
