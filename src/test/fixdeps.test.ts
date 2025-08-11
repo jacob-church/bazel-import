@@ -3,7 +3,8 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as assert from 'assert';
 import { runDepsFix } from "../groups/fixdeps";
-import {executeCommand, updateBuildDeps} from '../util/exectools';
+import {executeCommand} from '../util/exec/exectools';
+import { updateBuildDeps } from '../util/exec/buildozertools';
 import {setupStub, StubData, StubDozer} from './util/stubtool';
 import { addLineManually, deleteLineManually } from './util/edittools';
 

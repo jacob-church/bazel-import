@@ -1,19 +1,19 @@
 import * as vscode from 'vscode';
 import { Cache } from '../model/basecache';
 import {ExtensionState, setExtensionState, updateStatusBar} from '../extension';
-import { getConfig, MAIN_CONFIG, TS_LANGUAGE_ID } from '../config/config';
+import { getConfig, TS_LANGUAGE_ID } from '../config/config';
 import { ActiveFile } from '../model/activeFile';
-import {MAX_PKG_SIZE, updateMaxPackageSize} from '../userinteraction';
+import { MAX_PKG_SIZE, setDeletionStatus, showChangeMaxSize } from '../ui/userinteraction';
 import * as path from 'path';
-import { bazelLabelToUris, fsToWsPath, uriToBuild } from '../util/filepathtools';
-import { packageTooLarge } from '../util/packagetools';
-import { streamTargetInfosFromFilePaths } from '../util/bazeltools';
+import { fsToWsPath } from '../util/path/filepathtools';
+import { uriToBuild } from '../util/path/uritools';
+import { loadPackageSources, packageTooLarge } from '../util/path/packagetools';
 import { TargetInfo } from '../model/bazelquery/targetinfo';
 import { FilesContext } from '../model/bazelquery/filescontext';
 
 export {cache as PkgCache};
 
-const CHANGE_PACKAGE_LIMIT_BUTTON = 'Change max package size';
+export const CHANGE_PACKAGE_LIMIT_BUTTON = 'Change max package size';
 const CACHE_SIZE: number = Number(getConfig("maxCacheSize"));
 const cache = new Cache<string, ActiveData>(CACHE_SIZE);
 const DELETION_ENABLED = getConfig("enableDeletion");
@@ -41,10 +41,7 @@ export async function updateActiveEditor(editor: vscode.TextEditor | undefined) 
         return;
     }
     
-    // This build target is no longer valid (uriToBuild should use another mechanism)
-    // BUT this is useful for determining whether or not an active file is actually in a package
-    const [, buildUri] = uriToBuild(document.uri) ?? [, ];
-
+    const buildUri = uriToBuild(document.uri);
     if (buildUri === undefined) {
         updateStatusBar(
             'File not part of bazel package',
@@ -58,9 +55,16 @@ export async function updateActiveEditor(editor: vscode.TextEditor | undefined) 
         '$(loading~spin)'
     );
 
-
-    // Needed info: (key is uri string?)
     const value = cache.get(buildUri.toString());
+    await updateActiveFile(value, buildUri, document);
+
+    validatePackageSize();
+
+    setDeletionStatus(fileName);
+    setExtensionState(ExtensionState.active);
+}
+
+async function updateActiveFile(value: ActiveData | undefined, buildUri: vscode.Uri, document: vscode.TextDocument) {
     if (value !== undefined) {
         console.debug("Cache hit", buildUri.toString());
         const packageSources = value.packageSources;
@@ -72,7 +76,7 @@ export async function updateActiveEditor(editor: vscode.TextEditor | undefined) 
         ActiveFile.data = {
             packageSources: packageSources,
             buildUri: buildUri,
-            target: buildTarget, 
+            target: buildTarget,
             documentState: document.getText(),
             uri: document.uri,
             context: value.context
@@ -80,7 +84,7 @@ export async function updateActiveEditor(editor: vscode.TextEditor | undefined) 
     }
     else {
         console.debug("Cache miss", buildUri.toString());
-        const [context, packageSources, target] = await loadPackageSources(document.uri, buildUri); 
+        const [context, packageSources, target] = await loadPackageSources(document.uri, buildUri);
         ActiveFile.data = {
             packageSources: packageSources,
             buildUri: buildUri,
@@ -89,22 +93,14 @@ export async function updateActiveEditor(editor: vscode.TextEditor | undefined) 
             uri: document.uri,
             context: context
         };
-        // TODO: maybe remove this
-        if (!packageTooLarge()) {
-            cache.set(
-                buildUri.toString(),
+        cache.set(
+            buildUri.toString(),
             {
                 context: context,
-                packageSources: packageSources, 
+                packageSources: packageSources,
                 buildUri: buildUri,
             });
-        }
     }
-
-    validatePackageSize();
-
-    setDeletionStatus(fileName);
-    setExtensionState(ExtensionState.active);
 }
 
 /**
@@ -112,47 +108,6 @@ export async function updateActiveEditor(editor: vscode.TextEditor | undefined) 
  */ 
 function validatePackageSize() {
     if (packageTooLarge()) {
-        vscode.window
-            .showWarningMessage(
-                `${ActiveFile.data.packageSources.length} file(s) in package. Increase max package size? (current max: ${MAX_PKG_SIZE})`, 
-                CHANGE_PACKAGE_LIMIT_BUTTON
-            ).then((button) => {
-                if (button === CHANGE_PACKAGE_LIMIT_BUTTON) {
-                    updateMaxPackageSize(); 
-                }
-            });
+        showChangeMaxSize(`${ActiveFile.data.packageSources.length} file(s) in package. Increase max package size? (current max: ${MAX_PKG_SIZE})`);
     }
-}
-
-function uriToPkgString(uri: vscode.Uri) {
-    const fsPath = uri.fsPath;
-    const pkgDir = path.dirname(fsPath);
-    if (pkgDir.endsWith('/')) {
-        return pkgDir.slice(0, pkgDir.length - 1) + ':*';
-    }
-    return pkgDir + ':*';
-}
-
-export async function loadPackageSources(fileUri: vscode.Uri, buildUri: vscode.Uri): Promise<[FilesContext<string,string,TargetInfo>, vscode.Uri[], string]> {
-    const pkgString = uriToPkgString(buildUri);
-    const context = await streamTargetInfosFromFilePaths([pkgString]);
-
-    const wsPath = fsToWsPath(fileUri.fsPath);
-    const info = context.getInfo(wsPath);
-
-    if (info === undefined) {
-        throw new Error("Package Info undefined");
-    }
-
-    const packageSources = bazelLabelToUris(info.srcs);
-
-    return [context, packageSources, info.name];
-};
-
-function setDeletionStatus(fileName: string) {
-    const enabledStatus = packageTooLarge() ? "disabled" : "enabled";
-    updateStatusBar(
-        new vscode.MarkdownString(`Deletions ${enabledStatus} for\n\`${fileName}\``),
-        '$(wand)'
-    );
 }

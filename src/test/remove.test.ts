@@ -4,7 +4,7 @@ import * as path from 'path';
 import { ExtensionState, getExtensionState } from '../extension';
 import { cleanupGraceful, cleanupWorkspace, setupWorkspace } from './util/workspacesetup';
 import { setupStub, StubData, StubDozer, teardownStub } from './util/stubtool';
-import { updateBuildDeps } from '../util/exectools';
+import { updateBuildDeps } from '../util/exec/buildozertools';
 
 let testWorkspaceFolder: string;
 

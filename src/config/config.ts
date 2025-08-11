@@ -12,6 +12,10 @@ export const BUILD_FILE: string = getConfig(BUILDFILE);
 
 /**
  * Gets a configuration value from the extension's configuration
+ * 
+ * e.g., `properties: {
+ *  "<section>.<subsection>" : {...}, ... 
+ * }`
  * @param subsection the name of the value
  * @param section defaults to the main config
  * @returns a configuration value if it exists

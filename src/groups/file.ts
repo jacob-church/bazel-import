@@ -1,6 +1,6 @@
 // Deletes cache entry if package is modified
 
-import { fpToBuild } from "../util/filepathtools";
+import { fpToBuild } from "../util/path/filepathtools";
 import * as vscode from 'vscode';
 import { PkgCache } from "./active";
 

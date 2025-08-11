@@ -1,5 +1,8 @@
 import * as vscode from 'vscode'; 
-import { getConfig, MAIN_CONFIG } from './config/config';
+import { getConfig, MAIN_CONFIG } from '../config/config';
+import { updateStatusBar } from '../extension';
+import { packageTooLarge } from '../util/path/packagetools';
+import { CHANGE_PACKAGE_LIMIT_BUTTON } from '../groups/active';
 
 export let MAX_PKG_SIZE: number = getConfig("maxPackageSize"); 
 
@@ -77,3 +80,24 @@ export const showDismissableMessage = (message: string) => {
     }
     vscode.window.showInformationMessage(message);
 };
+
+export function setDeletionStatus(fileName: string) {
+    const enabledStatus = packageTooLarge() ? "disabled" : "enabled";
+    updateStatusBar(
+        new vscode.MarkdownString(`Deletions ${enabledStatus} for\n\`${fileName}\``),
+        '$(wand)'
+    );
+}
+
+export function showChangeMaxSize(text: string) {
+    vscode.window
+        .showWarningMessage(
+            text,
+            CHANGE_PACKAGE_LIMIT_BUTTON
+        ).then((button) => {
+            if (button === CHANGE_PACKAGE_LIMIT_BUTTON) {
+                updateMaxPackageSize();
+            }
+        });
+}
+

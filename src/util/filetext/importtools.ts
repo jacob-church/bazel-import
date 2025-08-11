@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
-import { importToFullPath } from './filepathtools';
-import { getConfig } from '../config/config';
-
+import { importToFs } from '../path/filepathtools';
+import { getConfig } from '../../config/config';
 
 const EXTERNAL_TARGETS = getConfig("externalTargets");
 
@@ -40,7 +39,7 @@ function getFullPathFromImports(importMatches: RegExpMatchArray[], fileUri: vsco
             continue;
         }
         try {
-            const importUri = importToFullPath(fileUri, filePath);
+            const importUri = importToFs(fileUri, filePath);
             if (importUri !== undefined) {
                 paths.push(importUri.replace('bazel-out/k8-fastbuild/bin/', '')); // TODO: fixme
             }

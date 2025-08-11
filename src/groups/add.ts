@@ -1,25 +1,20 @@
 import * as vscode from 'vscode';
-import {showDismissableFileMessage, showErrorMessage} from '../userinteraction';
-import {handleBuildozerError, updateBuildDeps} from '../util/exectools';
+import {showDismissableFileMessage, showErrorMessage} from '../ui/userinteraction';
+import { handleBuildozerError, updateBuildDeps } from '../util/exec/buildozertools';
 import {ActiveFileData} from '../model/activeFile';
-import {fsToWsPath, uriToBuild} from '../util/filepathtools';
-import {getAddedImportPaths} from '../util/eventtools';
+import {fsToWsPath} from '../util/path/filepathtools';
+import { uriToBuild } from '../util/path/uritools';
+import {getAddedImportPaths} from '../util/filetext/eventtools';
 import { BUILD_FILE } from '../config/config';
-import { uriEquals } from '../util/uritools';
-import { streamTargetInfosFromFilePaths } from '../util/bazeltools';
-import { pathsToTargets } from './remove';
+import { uriEquals } from '../util/path/uritools';
+import { streamTargetInfosFromFilePaths } from '../util/exec/bazeltools';
+import { pathsToTargets } from '../util/path/filepathtools';
 
 // ADDITION
 export async function addDeps(changeEvent: vscode.TextDocumentChangeEvent, changedFile: ActiveFileData | undefined) {    
-    let buildFileUri: vscode.Uri | undefined; // let's assert that the changeEvent matches the currently open text editor; that will filter out changes that come from other sources
-    
     // Step 1: Determine the current build target (e.g. where are we adding new dependencies to?)
-    let buildUri: vscode.Uri | undefined;
-    if (changedFile && uriEquals(changeEvent.document.uri, changedFile.uri)) {
-        buildUri = changedFile.buildUri; // This should be accurate though
-    } else {
-        buildUri = uriToBuild(changeEvent.document.uri)?.[1] ?? undefined;
-    }
+    const buildUri = (changedFile && uriEquals(changeEvent.document.uri, changedFile.uri)) ? changedFile.buildUri : uriToBuild(changeEvent.document.uri);
+
     if (buildUri === undefined) {
         return;
     }
@@ -56,14 +51,14 @@ export async function addDeps(changeEvent: vscode.TextDocumentChangeEvent, chang
             fileUri: changeEvent.document.uri
         });
         if (didUpdate) {
-            showDismissableFileMessage(`Attempted to add ${targets.size} dep(s) to ${BUILD_FILE}. One or more targets added successfully.`, buildFileUri);
+            showDismissableFileMessage(`Attempted to add ${targets.size} dep(s) to ${BUILD_FILE}. One or more targets added successfully.`, buildUri);
         }
     } catch (error) {
         handleBuildozerError({
             error,
             msgSuccess: `Nothing added to ${BUILD_FILE}`,
             msgFail: `Command failed: Something might be wrong with ${BUILD_FILE}`, 
-            uri: buildFileUri
+            uri: buildUri
         });
     }
 }

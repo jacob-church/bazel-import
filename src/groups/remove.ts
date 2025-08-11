@@ -1,16 +1,14 @@
 import * as vscode from 'vscode';
-import {showDismissableFileMessage, showDismissableMessage, showErrorMessage} from '../userinteraction';
+import {showDismissableFileMessage, showDismissableMessage, showErrorMessage} from '../ui/userinteraction';
 import {ActiveFile, ActiveFileData} from '../model/activeFile';
-import {getDeletedImportPaths} from '../util/eventtools';
+import {getDeletedImportPaths} from '../util/filetext/eventtools';
 import {ExtensionState, setExtensionState} from '../extension';
 import { BUILD_FILE } from '../config/config';
-import { getImportPathsFromPackage } from '../util/packagetools';
-import { uriEquals } from '../util/uritools';
-import { updateBuildDeps, handleBuildozerError } from '../util/exectools';
-import { fsToWsPath } from '../util/filepathtools';
-import { streamTargetInfosFromFilePaths } from '../util/bazeltools';
-import { TargetInfo } from '../model/bazelquery/targetinfo';
-import { FilesContext } from '../model/bazelquery/filescontext';
+import { getImportPathsFromPackage } from '../util/path/packagetools';
+import { uriEquals } from '../util/path/uritools';
+import { updateBuildDeps, handleBuildozerError } from '../util/exec/buildozertools';
+import { streamTargetInfosFromFilePaths } from '../util/exec/bazeltools';
+import { pathsToTargets } from '../util/path/filepathtools';
 
 // DELETION
 export async function removeDeps(changeEvent: vscode.TextDocumentChangeEvent, changedFile: ActiveFileData) {
@@ -39,10 +37,8 @@ export async function removeDeps(changeEvent: vscode.TextDocumentChangeEvent, ch
 
     const remainingTargets = pathsToTargets(remainingImports, context);
     remainingExternal.forEach(t => remainingTargets.add(t));
-
-    // Evaluate remaining imports to see if they depend on any of the build files from the deleted imports //TODO Factor this out
     
-    const targetDepsToRemove = validateDeletions(remainingTargets, deletionTargets);
+    const targetDepsToRemove = setSubtract(remainingTargets, deletionTargets);
     console.debug('Removing deps', targetDepsToRemove);
 
     // Step 4: If there are build files left, removed those dependencies from the target BUILD.bazel
@@ -68,27 +64,17 @@ export async function removeDeps(changeEvent: vscode.TextDocumentChangeEvent, ch
     setExtensionState(ExtensionState.ready);   
 }
 
-// TODO: move this
-export function pathsToTargets(importPaths: string[], context: FilesContext<string,string,TargetInfo>): Set<string> {
-    const targets = new Set<string>();
-    for (const importPath of importPaths) {
-        const wsPath = fsToWsPath(importPath);
-        const target = context.getTarget(wsPath);
-        if (target !== undefined) {
-            targets.add(target);
-        }
-    }
-    return targets;
-}
-
-function validateDeletions(remainingImports: Iterable<string>, deletedImports: Set<string>): Set<string> {
-    for (const imp of remainingImports) {
-        if (deletedImports.delete(imp)) {
-            console.debug(`${imp} dep still exists\n`);
+/**
+ * Subtracts items from a set
+ */
+function setSubtract(subtractions: Iterable<string>, contentSet: Set<string>): Set<string> {
+    for (const imp of subtractions) {
+        if (contentSet.delete(imp)) {
+            console.debug(`${imp} removed from set\n`);
         } 
-        if (deletedImports.size === 0) {
+        if (contentSet.size === 0) {
             break; 
         }
     }
-    return deletedImports;
+    return contentSet;
 }

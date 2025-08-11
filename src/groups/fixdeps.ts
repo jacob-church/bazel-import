@@ -1,13 +1,15 @@
 import * as vscode from 'vscode';
-import { fsToWsPath, uriToBuild } from '../util/filepathtools';
+import { fsToWsPath } from '../util/path/filepathtools';
+import { uriToBuild } from '../util/path/uritools';
 import { BUILD_FILE, getConfig } from '../config/config';
-import { handleBuildozerError, updateBuildDeps } from '../util/exectools';
-import { showDismissableFileMessage, showDismissableMessage } from '../userinteraction';
-import { getImportPathsFromPackage } from '../util/packagetools';
-import { ActiveData, loadPackageSources, PkgCache } from './active';
+import { handleBuildozerError, updateBuildDeps } from '../util/exec/buildozertools';
+import { showDismissableFileMessage, showDismissableMessage } from '../ui/userinteraction';
+import { getImportPathsFromPackage } from '../util/path/packagetools';
+import { ActiveData, PkgCache } from './active';
+import { loadPackageSources } from '../util/path/packagetools';
 import * as assert from 'assert';
-import { streamTargetInfosFromFilePaths } from '../util/bazeltools';
-import { pathsToTargets } from './remove';
+import { streamTargetInfosFromFilePaths } from '../util/exec/bazeltools';
+import { pathsToTargets } from '../util/path/filepathtools';
 
 
 const CURRENT_FILE: string = '$(file) Current file';
@@ -116,7 +118,7 @@ export async function runDepsFix(file: vscode.Uri | undefined) {
 
             // Get build target
             progress.report({message: "loading package context"});
-            const [, buildUri] = uriToBuild(file) ??  [,];
+            const buildUri = uriToBuild(file);
             if (shouldHalt(buildUri === undefined, "No build target found")) { return; }
             assert(buildUri !== undefined); // Type checker
 
@@ -178,6 +180,11 @@ export async function runDepsFix(file: vscode.Uri | undefined) {
     });
 };
 
+/**
+ * Checks whether a dependency should be included
+ * @param dep the string of the dependency
+ * @returns false for exclusion or true for inclusion
+ */
 function isIncluded(dep: string) {
     for (const exclusion of EXCLUDED_DEPENDENCIES) {
         if (dep.includes(exclusion)) {

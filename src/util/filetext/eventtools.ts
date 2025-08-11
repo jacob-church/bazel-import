@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { getFullImportPathsFromTextAndFile } from './filetools';
+import { getFullImportPathsFromTextAndFile } from './importtools';
 
 const MIN_LENGTH = 7; // Minimum length of a ts import "from ''"
 
@@ -39,7 +39,7 @@ function getFullPathsFromEvent(
     const changes = event.contentChanges;
 
     const paths = [];
-    const externalTargets = []
+    const externalTargets = [];
 
     for (const change of changes) {
         if (!isValid(change)) {

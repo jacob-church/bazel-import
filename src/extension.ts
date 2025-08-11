@@ -2,11 +2,11 @@ import * as vscode from 'vscode';
 import { updateActiveEditor } from './groups/active';
 import { chooseFileToFixDeps } from './groups/fixdeps';
 import { ActiveFile } from './model/activeFile';
-import { uriToBuild } from './util/filepathtools';
-import { packageTooLarge } from './util/packagetools';
+import { uriToBuild } from './util/path/uritools';
+import { packageTooLarge } from './util/path/packagetools';
 import { removeDeps } from './groups/remove';
 import { addDeps } from './groups/add';
-import { shutdownBazelHard } from './util/exectools';
+import { shutdownBazelHard } from './util/exec/bazeltools';
 import { onCreateOrDeleteFile } from './groups/file';
 import { getConfig, OPEN_BAZEL_COMMAND, FIX_DEPS_COMMAND } from './config/config';
 import { BAZELSHUTDOWN, ENABLEADDITION, ENABLEDELETION } from './config/generated';
@@ -15,9 +15,8 @@ export async function activate(context: vscode.ExtensionContext) {
     const bazelCommand = vscode.commands.registerCommand(OPEN_BAZEL_COMMAND, async () => {
         const activeUri = vscode.window.activeTextEditor?.document.uri;    
         if (activeUri) {
-            const currTargetPair = uriToBuild(activeUri);
-            if (currTargetPair) {
-                const buildFileUri = currTargetPair[1];
+            const buildFileUri = uriToBuild(activeUri);
+            if (buildFileUri) {
                 vscode.workspace.openTextDocument(buildFileUri);
             }
         }
