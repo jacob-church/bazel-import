@@ -17,7 +17,7 @@ export async function activate(context: vscode.ExtensionContext) {
         if (activeUri) {
             const buildFileUri = uriToBuild(activeUri);
             if (buildFileUri) {
-                vscode.workspace.openTextDocument(buildFileUri);
+                vscode.window.showTextDocument(buildFileUri);
             }
         }
     });
