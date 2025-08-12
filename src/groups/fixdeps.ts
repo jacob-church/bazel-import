@@ -3,7 +3,7 @@ import { fsToWsPath } from '../util/path/filepathtools';
 import { uriToBuild } from '../util/path/uritools';
 import { BUILD_FILE, getConfig } from '../config/config';
 import { handleBuildozerError, updateBuildDeps } from '../util/exec/buildozertools';
-import { showDismissableFileMessage, showDismissableMessage } from '../ui/userinteraction';
+import { showDismissableFileMessage, showDismissableMessage, showErrorMessage } from '../ui/userinteraction';
 import { getImportPathsFromPackage } from '../util/path/packagetools';
 import { ActiveData, PkgCache } from './active';
 import { loadPackageSources } from '../util/path/packagetools';
@@ -76,7 +76,7 @@ async function getFile() {
         openLabel: "Select file",
         filters: {
             // eslint-disable-next-line @typescript-eslint/naming-convention
-            'Package files': ['ts', 'bazel'],
+            'Package files': ['ts'], // TODO: If fixed add back bazel files
             // eslint-disable-next-line @typescript-eslint/naming-convention
             'All files': ['*']
         },
@@ -126,7 +126,11 @@ export async function runDepsFix(file: vscode.Uri | undefined) {
             let data: ActiveData | undefined = PkgCache.get(buildUri.toString());
             if (data === undefined) {
                 // TODO: consider putting this in a method and use in active.ts
-                const [pkgcontext, packageSources, name] = await loadPackageSources(file, buildUri);
+                const [pkgcontext, packageSources, name] = await loadPackageSources(file, buildUri) ?? [,,];
+                if (pkgcontext === undefined) {
+                    showErrorMessage("Error in package--failed to run deps fix");
+                    return;
+                }
                 data = {
                     context: pkgcontext,
                     packageSources: packageSources,
@@ -136,7 +140,7 @@ export async function runDepsFix(file: vscode.Uri | undefined) {
             }
 
             const wsPath = fsToWsPath(file.fsPath);
-            const pkgInfo = data.context.getInfo(wsPath);
+            const pkgInfo = data.context.getInfo(wsPath); // TODO fix for build file? (no bc it's not just one target?)
             if (shouldHalt(pkgInfo === undefined, "Error in package")) { return; }
             assert(pkgInfo !== undefined); // Type checker
             const preFixDeps = new Set(pkgInfo.deps);

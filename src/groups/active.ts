@@ -3,7 +3,7 @@ import { Cache } from '../model/basecache';
 import {ExtensionState, setExtensionState, updateStatusBar} from '../extension';
 import { getConfig, TS_LANGUAGE_ID } from '../config/config';
 import { ActiveFile } from '../model/activeFile';
-import { MAX_PKG_SIZE, setDeletionStatus, showChangeMaxSize } from '../ui/userinteraction';
+import { MAX_PKG_SIZE, setDeletionStatus, showChangeMaxSize, showErrorMessage } from '../ui/userinteraction';
 import * as path from 'path';
 import { fsToWsPath } from '../util/path/filepathtools';
 import { uriToBuild } from '../util/path/uritools';
@@ -84,7 +84,15 @@ async function updateActiveFile(value: ActiveData | undefined, buildUri: vscode.
     }
     else {
         console.debug("Cache miss", buildUri.toString());
-        const [context, packageSources, target] = await loadPackageSources(document.uri, buildUri);
+        const [context, packageSources, target] = await loadPackageSources(document.uri, buildUri) ?? [,,];
+        if (context === undefined) {
+            showErrorMessage("Package failed to load");
+            updateStatusBar(
+                'Package not parsed',
+                '$(eye-closed)'
+            );
+            return;
+        }
         ActiveFile.data = {
             packageSources: packageSources,
             buildUri: buildUri,
@@ -99,7 +107,8 @@ async function updateActiveFile(value: ActiveData | undefined, buildUri: vscode.
                 context: context,
                 packageSources: packageSources,
                 buildUri: buildUri,
-            });
+            }
+        );
     }
 }
 

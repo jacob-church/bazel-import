@@ -33,7 +33,7 @@ function uriToPkgString(uri: vscode.Uri) {
     return pkgDir + ':*';
 }
 
-export async function loadPackageSources(fileUri: vscode.Uri, buildUri: vscode.Uri): Promise<[FilesContext<string, string, TargetInfo>, vscode.Uri[], string]> {
+export async function loadPackageSources(fileUri: vscode.Uri, buildUri: vscode.Uri): Promise<[FilesContext<string, string, TargetInfo>, vscode.Uri[], string] | undefined> {
     const pkgString = uriToPkgString(buildUri);
     const context = await streamTargetInfosFromFilePaths([pkgString]);
 
@@ -41,7 +41,7 @@ export async function loadPackageSources(fileUri: vscode.Uri, buildUri: vscode.U
     const info = context.getInfo(wsPath);
 
     if (info === undefined) {
-        throw new Error("Package Info undefined");
+        return undefined; 
     }
 
     const packageSources = bazelLabelToUris(info.srcs);
