@@ -113,7 +113,7 @@ export function wsToRelativePath(wsPath: string): string {
 }
 export function wsToFsPath(wsPath: string): string {
     const relativePath = wsToRelativePath(wsPath);
-    return getRoot() + relativePath;
+    return path.join(getRoot(), relativePath);
 }
 
 export function getRoot() {
