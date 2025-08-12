@@ -11,10 +11,15 @@ import { uriToBuild } from './uritools';
 
 let configCache: Cache<string, ts.ParsedCommandLine> = new Cache<string, ts.ParsedCommandLine>(getConfig("maxCacheSize"));
 
+export interface PathOrTarget {
+    path?: string,
+    externalTarget?: string
+}
+
 export function resolveSpecifierToFilePath(
     hostFileUri: vscode.Uri,
     specifier: string
-) {
+): PathOrTarget | undefined {
     const configPath = ts.findConfigFile(hostFileUri.fsPath, ts.sys.fileExists, 'tsconfig.json');
 
     if (!configPath) {
@@ -55,8 +60,22 @@ export function resolveSpecifierToFilePath(
     if (resolved.resolvedModule === undefined) {
         return undefined; 
     }
+    const module = resolved.resolvedModule; 
 
-    return resolved.resolvedModule.resolvedFileName;
+    if (module.isExternalLibraryImport) {
+        const packageName = "@npm//" + module.packageId?.name;
+        const indexToCopy = packageName.lastIndexOf('/') + 1;
+        const target = packageName + `:${packageName.substring(indexToCopy)}`;
+
+        return {
+            externalTarget: target
+        };
+    }
+
+
+    return {
+        path: resolved.resolvedModule.resolvedFileName
+    };
 }
 
 function getConfiguration(configPath: string): ts.ParsedCommandLine | undefined {
@@ -85,18 +104,18 @@ export function fpToBuild(fsPath: string) {
     return buildUri; 
 }
 
-export function importToFs(currentFile: vscode.Uri, importPath: string) {
-    let filePath: string | undefined;
-
+export function importToFs(currentFile: vscode.Uri, importPath: string): PathOrTarget | undefined {
     if (importPath.startsWith('.')) {
-        filePath = path.resolve(path.dirname(currentFile.fsPath), importPath) + ".ts";
+        const filePath = path.resolve(path.dirname(currentFile.fsPath), importPath) + ".ts";
         if (fs.existsSync(filePath)) {
-            return filePath;
+            return {
+                path: filePath
+            };
         }
     }
-    filePath = resolveSpecifierToFilePath(currentFile, importPath);
+    const pathOrTarget = resolveSpecifierToFilePath(currentFile, importPath);
 
-    return filePath;
+    return pathOrTarget;
 }
 
 export function fsToRelativePath(fsPath: string) {

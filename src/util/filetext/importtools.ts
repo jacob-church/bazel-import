@@ -2,7 +2,6 @@ import * as vscode from 'vscode';
 import { importToFs } from '../path/filepathtools';
 import { getConfig } from '../../config/config';
 
-const EXTERNAL_TARGETS = getConfig("externalTargets");
 const IMPORT_REPLACEMENTS = getConfig("importPathReplacements");
 
 /**
@@ -34,15 +33,16 @@ function getFullPathFromImports(importMatches: RegExpMatchArray[], fileUri: vsco
     const externalTargets: string[] = [];
     for (const match of importMatches) {
         const filePath = matchToPath(match);
-        const externalTarget = filterExternalTargets(filePath);
-        if (externalTarget !== undefined) {
-            externalTargets.push(externalTarget); 
-            continue;
-        }
         try {
-            const importUri = importToFs(fileUri, filePath);
-            if (importUri !== undefined) {
-                paths.push(importPathReplace(importUri));
+            const importPathOrTarget = importToFs(fileUri, filePath);
+            if (importPathOrTarget === undefined) {
+                continue;
+            }
+            if (importPathOrTarget.path !== undefined) {
+                paths.push(importPathReplace(importPathOrTarget.path));
+            }
+            if (importPathOrTarget.externalTarget !== undefined) {
+                externalTargets.push(importPathOrTarget.externalTarget);
             }
         }
         catch (error) {
@@ -58,15 +58,6 @@ function matchToPath(match: RegExpMatchArray) {
     const filePathIndex = match[0].indexOf(searchString) + searchString.length;
     const filePath = match[0].slice(filePathIndex, match[0].length - 2);
     return filePath;
-}
-
-function filterExternalTargets(filePath: string) {
-    for (const externalTarget of Object.keys(EXTERNAL_TARGETS)) {
-        if (filePath.startsWith(externalTarget)) {
-            return EXTERNAL_TARGETS[externalTarget]; 
-        }
-    }
-    return undefined; 
 }
 
 function importPathReplace(importPath: string) {

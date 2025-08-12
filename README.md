@@ -26,7 +26,6 @@ This extension contributes the following settings:
 - `bazel-import.buildFile`: The file name convention where your build targets are defined
 - `bazel-import.targetPrefixes`: Path prefixes that should be considered for auto-adding Bazel deps
 - `bazel-import.importPathPrefixes`: Target prefixes that should be considered for auto-adding Bazel deps
-- `bazel-import.externalTargets`: External dependency path previxes and their associated external build targets
 - `bazel-import.notifyChange`: Notify the user that a build file has been updated
 - `bazel-import.excludeDependencies`: Excludes dependencies from the dependency fix. Use for hidden dependencies, which you can find by querying the dependency label on your build file and comparing with the dependency array in the build file <span style="color:blue;font-weight:bold">[BETA]</span>
 - `bazel-import.enableDeletion`: Toggles automatic deletions <span style="color:blue;font-weight:bold">[BETA]</span>
