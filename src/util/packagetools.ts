@@ -2,12 +2,12 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import {ActiveFile} from '../model/activeFile';
 import {MAX_PKG_SIZE} from '../ui/userinteraction';
-import {getFullPathsFromFile} from './text/importtools';
+import {getFullPathsFromFile} from './filetext/importtools';
 import { FilesContext } from '../model/bazelquery/filescontext';
 import { TargetInfo } from '../model/bazelquery/targetinfo';
 import { streamTargetInfosFromFilePaths } from './exec/bazeltools';
-import { fsToWsPath } from './file/filepathtools';
-import { bazelLabelToUris } from './file/uritools';
+import { fsToWsPath } from './path/filepathtools';
+import { bazelLabelToUris } from './path/uritools';
 
 export async function getImportPathsFromPackage(packageSources: vscode.Uri[]): Promise<[string[], string[]]> {
     const importsAndTargets = await Promise.all(packageSources.map(async uri => getFullPathsFromFile(uri!)));

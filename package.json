@@ -35,23 +35,6 @@
 						"default": "BUILD.bazel",
 						"description": "The file name convention where your build targets are defined."
 					},
-					"bazel-import.importPathPrefixes": {
-						"type": "array",
-						"default": [],
-						"description": "Path prefixes that should be considered for auto-adding Bazel deps. An empty array will consider all imports."
-					},
-					"bazel-import.targetPrefixes": {
-						"type": [
-							"array",
-							"string",
-							"null"
-						],
-						"default": [
-							"/cake/app/webroot/ts",
-							"/extensibility"
-						],
-						"description": "Target prefixes that should be considered for auto-adding Bazel deps."
-					},
 					"bazel-import.notifyChange": {
 						"type": "boolean",
 						"default": true,
@@ -123,6 +106,7 @@
 		"vscode:prepublish": "npm run compile",
 		"compile": "tsc -p ./tsconfig.json",
 		"compile:scripts": "tsc -p ./scripts/tsconfig.json",
+		"compile:all": "npm run compile && npm run compile:scripts",
 		"watch": "tsc -watch -p ./tsconfig.json",
 		"pretest": "npm run compile && npm run lint",
 		"lint": "eslint src --ext ts",
