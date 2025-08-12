@@ -70,20 +70,20 @@
 						],
 						"description": "Add hidden dependencies here to avoid checking them (buildozer won't remove them, so this primarily influences the UI)"
 					},
-					"bazel-import.bazelShutdown": {
+					"bazel-import.bazelShutdownOnActivation": {
 						"type": "boolean",
 						"default": false,
-						"description": "Restart bazel server on activation"
+						"description": "Stop the current bazel server on extension activation"
 					},
 					"bazel-import.fixDepsOnCurrent": {
 						"type": "boolean",
 						"default": false,
 						"description": "Automatically run fixDeps on the current file"
 					},
-					"bazel-import.libraryRegex": {
+					"bazel-import.kindPattern": {
 						"type": "string",
 						"default": "(ts|js)_library",
-						"description": "Specify the bazel library type(s) that you want to include in dependency analysis."
+						"description": "Specify the kind of targets that you want to include in dependency analysis."
 					}, 
 					"bazel-import.importPathReplacements": {
 						"type": "object",

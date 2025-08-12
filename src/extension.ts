@@ -6,10 +6,10 @@ import { uriToBuild } from './util/path/uritools';
 import { packageTooLarge } from './util/path/packagetools';
 import { removeDeps } from './groups/remove';
 import { addDeps } from './groups/add';
-import { shutdownBazelHard } from './util/exec/bazeltools';
+import { forceBazelShutdown } from './util/exec/bazeltools';
 import { onCreateOrDeleteFile } from './groups/file';
 import { getConfig, OPEN_BAZEL_COMMAND, FIX_DEPS_COMMAND } from './config/config';
-import { BAZELSHUTDOWN, ENABLEADDITION, ENABLEDELETION } from './config/generated';
+import { ENABLEADDITION, ENABLEDELETION } from './config/generated';
 
 export async function activate(context: vscode.ExtensionContext) {
     const bazelCommand = vscode.commands.registerCommand(OPEN_BAZEL_COMMAND, async () => {
@@ -56,8 +56,8 @@ export async function activate(context: vscode.ExtensionContext) {
         fileCreationListener, 
         fileDeletionListener
     );
-    if (getConfig(BAZELSHUTDOWN)) {
-        await shutdownBazelHard();
+    if (getConfig("bazelShutdownOnActivation")) {
+        await forceBazelShutdown();
     }
 
     await updateActiveEditor(vscode.window.activeTextEditor);

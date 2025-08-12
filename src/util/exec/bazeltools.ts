@@ -5,7 +5,7 @@ import { Attribute } from '../../model/bazelquery/attribute';
 import { TargetInfo } from '../../model/bazelquery/targetinfo';
 import { getConfig } from '../../config/config';
 
-const LIBRARY_REGEX = getConfig("libraryRegex");
+const KIND_PATTERN = getConfig("kindPattern");
 
 /**
  * Streams a bazel query, handling larger numbers of imports/package sizes without overflowing the buffer
@@ -20,7 +20,7 @@ export async function streamTargetInfosFromFilePaths(filePaths: string[]) {
     const command = 'bazel';
     const args = [
         'query',
-        `kind("${LIBRARY_REGEX}", same_pkg_direct_rdeps(${relativePaths}))`,
+        `kind("${KIND_PATTERN}", same_pkg_direct_rdeps(${relativePaths}))`,
         '--output',
         'streamed_jsonproto'
     ];
@@ -68,7 +68,7 @@ function setSafe<K,V>(map: Map<K,V>, key: K, value: V) {
  * @param timeoutMs - The time to wait for a graceful shutdown before forcing it.
  */
 
-export async function shutdownBazelHard(timeoutMs = 2000) {
+export async function forceBazelShutdown(timeoutMs = 2000) {
     try {
         // Create a timeout promise
         const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Graceful shutdown timed out')), timeoutMs)
