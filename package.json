@@ -60,7 +60,14 @@
 							"@angular/router": "@npm//@angular/router:router",
 							"@angular/forms": "@npm//@angular/forms:forms",
 							"@angular/platform-browser": "@npm//@angular/platform-browser:platform-browser",
-							"rxjs": "@npm//rxjs:rxjs"
+							"rxjs": "@npm//rxjs:rxjs",
+							"puppeteer": "@npm//puppeteer:puppeteer",
+							"ansi_up": "@npm//ansi_up:ansi_up",
+							"kysely": "@npm//kysely:kysely",
+							"fastify": "@npm//fastify:fastify",
+							"http": "",
+							"goog:": "",
+							"aws-sdk": "@npm//aws-sdk:aws-sdk"
 						},
 						"description": "External dependency path prefixes and their associated external build targets."
 					},
