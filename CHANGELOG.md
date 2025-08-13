@@ -8,7 +8,38 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Added
 
-- More flexible tsconfig parsing
+- Ability to exclude/include directories in automatic dependency updates
+
+## [1.0.0] - 2025-08-14
+
+### Added
+
+- Automatic additions now toggleable with `enableAdditions`
+- Run fix deps on the current file without prompting the user with `fixCurrentDeps`
+- Specify the pattern to search for in a `kind` bazel query with `kindPattern`
+- Specify the fallback directory to run bazel queries (primarily) with `defaultRoot`
+- Support for unconventional import structures e.g., automatically generated files whose build files are located with the generators with `importPathReplacements`
+- Shutdown the currently running bazel server if one exists on extension activation with `bazelShutdownOnActivation`
+- Parse external dependencies from the ts file path resolver
+  - Excludes imports that are in built in modules automatically
+  - Known bugs include a lack of support for @type node dependencies
+- Partial support for `require('...')` imports
+- Scripts to automatically generate a type definition and string exports that contain the names of configurations in the current package.json, allowing better sync and validation of configuration access
+  - `npm run compile:scripts` compiles the `scripts` directory
+  - `npm run compile:all` compiles both the `src` and `scripts` directories
+  - `npm run config` generates the type definition and string exports in `src/config/generated.ts`
+- Cache invalidation for removed or added files so that a package that is already loaded in the cache will not use missing files but will use newly added files in computing dependencies
+
+### Removed
+
+- External dependencies setting
+- Unused target and import path settings
+
+### Changed
+
+- Migrated to using bazel query to determine the target of a file instead of the structure. This is slightly slower than the previous version, but is necessary when more than one target is in a bazel build file
+- Converts file paths to uris only when needed instead of greedily
+- Updated test stubbing to work with bazel queries
 
 ## [0.1.3] - 2025-07-29
 
