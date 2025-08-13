@@ -8,6 +8,7 @@ import { getConfig } from '../../config/config';
 import { FilesContext } from '../../model/bazelquery/filescontext';
 import { TargetInfo } from '../../model/bazelquery/targetinfo';
 import { uriToBuild } from './uritools';
+import { builtinModules } from 'module';
 
 let configCache: Cache<string, ts.ParsedCommandLine> = new Cache<string, ts.ParsedCommandLine>(getConfig("maxCacheSize"));
 
@@ -63,7 +64,10 @@ export function resolveSpecifierToFilePath(
     const module = resolved.resolvedModule; 
 
     if (module.isExternalLibraryImport) {
-        const packageName = "@npm//" + module.packageId?.name;
+        if (module.packageId === undefined || builtinModules.includes(module.packageId.name)) {
+            return undefined;
+        }
+        const packageName = "@npm//" + module.packageId.name;
         const indexToCopy = packageName.lastIndexOf('/') + 1;
         const target = packageName + `:${packageName.substring(indexToCopy)}`;
 

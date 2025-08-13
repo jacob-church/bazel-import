@@ -24,7 +24,7 @@ export function getFullImportPathsFromTextAndFile(text: string, fileUri: vscode.
 }
 
 function getImportsFromText(fileText: string): RegExpMatchArray[] {
-    const query = new RegExp("from \'.*\';", "gi");
+    const query = /(from '.*'| require\('.*'\))/g;
     return Array.from(fileText.matchAll(query));
 };
 
@@ -55,7 +55,15 @@ function getFullPathFromImports(importMatches: RegExpMatchArray[], fileUri: vsco
 
 function matchToPath(match: RegExpMatchArray) {
     const searchString = "from \'";
-    const filePathIndex = match[0].indexOf(searchString) + searchString.length;
+    const startIndex = match[0].indexOf(searchString);
+    if (startIndex >= 0) {
+        const filePathIndex = startIndex + searchString.length;
+        const filePath = match[0].slice(filePathIndex, match[0].length - 1);
+        return filePath;
+    }
+    const searchRequire = " require(\'";
+    const startRequire = match[0].indexOf(searchRequire);
+    const filePathIndex = startRequire + searchRequire.length;
     const filePath = match[0].slice(filePathIndex, match[0].length - 2);
     return filePath;
 }

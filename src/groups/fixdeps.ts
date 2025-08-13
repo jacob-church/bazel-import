@@ -144,6 +144,7 @@ export async function runDepsFix(file: vscode.Uri | undefined) {
             if (shouldHalt(pkgInfo === undefined, "Error in package")) { return; }
             assert(pkgInfo !== undefined); // Type checker
             const preFixDeps = new Set(pkgInfo.deps);
+            console.debug("Prefix deps", preFixDeps);
 
             progress.report({message: `finding dependencies for ${data.packageSources.length} source file(s)`});
             const [importPaths, externalTargets] = await getImportPathsFromPackage(data.packageSources);
@@ -157,7 +158,7 @@ export async function runDepsFix(file: vscode.Uri | undefined) {
             // Needed so it doesn't add self dependency
             preFixDeps.delete(pkgInfo.name);
             currentDependencyTargets.delete(pkgInfo.name);
-            console.debug("New dependencies", currentDependencyTargets);
+            console.debug("Current dependencies", currentDependencyTargets);
             if (shouldHalt(currentDependencyTargets.size === 0)) { return; }
 
             progress.report({message: "comparing dependencies and modifying build file"});
