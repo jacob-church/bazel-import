@@ -8,7 +8,7 @@ import { removeDeps } from './groups/remove';
 import { addDeps } from './groups/add';
 import { forceBazelShutdown } from './util/exec/bazeltools';
 import { onCreateOrDeleteFile } from './groups/file';
-import { getConfig, OPEN_BAZEL_COMMAND, FIX_DEPS_COMMAND } from './config/config';
+import { getConfig, OPEN_BAZEL_COMMAND, FIX_DEPS_COMMAND, TS_LANGUAGE_ID } from './config/config';
 import { ENABLEADDITION, ENABLEDELETION } from './config/generated';
 
 export async function activate(context: vscode.ExtensionContext) {
@@ -25,7 +25,7 @@ export async function activate(context: vscode.ExtensionContext) {
     const changeEditorListener = vscode.window.onDidChangeActiveTextEditor(updateActiveEditor);
 
     const changeTextListener = vscode.workspace.onDidChangeTextDocument(async (changeEvent: vscode.TextDocumentChangeEvent) => {
-        if (changeEvent.contentChanges.length === 0 || changeEvent.document.uri.fsPath !== vscode.window.activeTextEditor?.document.uri.fsPath) {
+        if (changeEvent.contentChanges.length === 0 || changeEvent.document.uri.fsPath !== vscode.window.activeTextEditor?.document.uri.fsPath || changeEvent.document.languageId !== TS_LANGUAGE_ID) {
             return; // skip empty changes and changes from other documents
         }
 
