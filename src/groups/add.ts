@@ -26,7 +26,7 @@ export async function addDeps(changeEvent: vscode.TextDocumentChangeEvent, chang
     }
     
     const filePath = changeEvent.document.uri.fsPath;
-    const context = await streamTargetInfosFromFilePaths(addedImports.concat(filePath));
+    const context = await streamTargetInfosFromFilePaths(Array.from(new Set(addedImports.concat(filePath))));
     
     const targets = pathsToTargets(addedImports, context);
     externalTargets.forEach(t => targets.add(t));
@@ -42,6 +42,7 @@ export async function addDeps(changeEvent: vscode.TextDocumentChangeEvent, chang
         showErrorMessage(`Failed to find target for ${wsPath}`);
         return;
     }
+    targets.delete(currentTarget); // No adding self dependencies
 
     // Step 3: Do the update
     try {
