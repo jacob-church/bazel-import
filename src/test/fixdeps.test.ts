@@ -5,7 +5,7 @@ import * as assert from 'assert';
 import { runDepsFix } from "../groups/fixdeps";
 import {executeCommand} from '../util/exec/exectools';
 import { updateBuildDeps } from '../util/exec/buildozertools';
-import {setupStub, StubData, StubDozer} from './util/stubtool';
+import {setupStubs, StubData, StubDozer} from './util/stubtool';
 import { addLineManually, deleteLineManually } from './util/edittools';
 
 let testWorkspaceFolder: string;
@@ -14,7 +14,7 @@ process.on('SIGINT', () => cleanupGraceful('SIGINT', testWorkspaceFolder));
 process.on('SIGTERM', () => cleanupGraceful('SIGTERM', testWorkspaceFolder));
 process.on('exit', (code) => cleanupGraceful(code, testWorkspaceFolder));
 
-suite.only("Fix Deps", () => {
+suite("Fix Deps", () => {
     let package1: string;
     let package2: string;
     let package3: string;
@@ -22,7 +22,7 @@ suite.only("Fix Deps", () => {
 
     suiteSetup(async () => {
         ({testWorkspaceFolder, package1, package2, package3, package4} = await setupWorkspace(true));
-        setupStub();
+        setupStubs(testWorkspaceFolder);
     });
 
     setup(async () => {
@@ -60,8 +60,8 @@ suite.only("Fix Deps", () => {
 
         const buildozer: StubDozer = StubData.mostRecent();
         
-        assert.strictEqual(buildozer.target, "//ts/src/package2"); 
-        assert(buildozer.remove.includes("//ts/src/package3/package4"));
+        assert.strictEqual(buildozer.target, "//ts/src/package2:package2"); 
+        assert(buildozer.remove.includes("//ts/src/package3/package4:package4"));
         assert.strictEqual(buildozer.add.length, 0);
         assert.strictEqual(buildozer.remove.length, 1);
     });
@@ -76,9 +76,9 @@ suite.only("Fix Deps", () => {
 
         const buildozer: StubDozer = StubData.mostRecent();
 
-        assert.strictEqual(buildozer.target, "//ts/src/package3/package4");
+        assert.strictEqual(buildozer.target, "//ts/src/package3/package4:package4");
         assert.strictEqual(buildozer.remove.length, 0);
-        assert(buildozer.add.includes("//ts/src/package3"));
+        assert(buildozer.add.includes("//ts/src/package3:package3"));
         assert.strictEqual(buildozer.add.length, 1);
     });
 
@@ -96,11 +96,11 @@ suite.only("Fix Deps", () => {
 
         const buildozer: StubDozer = StubData.mostRecent();
 
-        assert.strictEqual(buildozer.target, "//ts/src/package1");
-        assert(buildozer.remove.includes("//ts/src/package3"));
-        assert(buildozer.remove.includes("//ts/src/package2"));
+        assert.strictEqual(buildozer.target, "//ts/src/package1:package1");
+        assert(buildozer.remove.includes("//ts/src/package3:package3"));
+        assert(buildozer.remove.includes("//ts/src/package2:package2"));
         assert.strictEqual(buildozer.remove.length, 2);
-        assert(buildozer.add.includes("//ts/src/package5"));
+        assert(buildozer.add.includes("//ts/src/package5:package5"));
         assert.strictEqual(buildozer.add.length, 1);
     });
 

@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { ExtensionState, getExtensionState } from '../extension';
 import { cleanupGraceful, cleanupWorkspace, setupWorkspace } from './util/workspacesetup';
-import { setupStub, StubData, StubDozer, teardownStub } from './util/stubtool';
+import { setupStubs, StubData, StubDozer, teardownStubs } from './util/stubtool';
 import { updateBuildDeps } from '../util/exec/buildozertools';
 
 let testWorkspaceFolder: string;
@@ -24,14 +24,14 @@ async function awaitState(state: ExtensionState) {
     await waiter; 
 }
 
-suite.only("Remove Deps", () => {
+suite("Remove Deps", () => {
     // Create a temporary workspace for tests
     let package1: string;
     let package2: string;
 
     suiteSetup(async () => {
         ({testWorkspaceFolder, package1, package2} = await setupWorkspace());
-        setupStub();
+        setupStubs(testWorkspaceFolder);
     });
 
     setup(async () => {
@@ -68,8 +68,8 @@ suite.only("Remove Deps", () => {
 
         let buildozer: StubDozer = StubData.mostRecent(); 
 
-        assert.strictEqual(buildozer.target, "//ts/src/package1");
-        assert(buildozer.remove.includes("//ts/src/package2"));
+        assert.strictEqual(buildozer.target, "//ts/src/package1:package1");
+        assert(buildozer.remove.includes("//ts/src/package2:package2"));
         assert.strictEqual(buildozer.remove.length, 1);
         assert.strictEqual(buildozer.add.length, 0); 
         assert.strictEqual(StubData.count(), 1);
@@ -83,9 +83,9 @@ suite.only("Remove Deps", () => {
 
         buildozer = StubData.mostRecent();
         
-        assert.strictEqual(buildozer.target,"//ts/src/package1");
-        assert(buildozer.remove.includes("//ts/src/package3"));
-        assert(buildozer.remove.includes("//ts/src/package3/package4"));
+        assert.strictEqual(buildozer.target,"//ts/src/package1:package1");
+        assert(buildozer.remove.includes("//ts/src/package3:package3"));
+        assert(buildozer.remove.includes("//ts/src/package3/package4:package4"));
         assert.strictEqual(buildozer.remove.length, 2);
         assert.strictEqual(buildozer.add.length, 0); 
         assert.strictEqual(StubData.count(), 2);
@@ -109,7 +109,7 @@ suite.only("Remove Deps", () => {
 
         let buildozer: StubDozer = StubData.mostRecent();
 
-        assert.strictEqual(buildozer.target, "//ts/src/package2"); 
+        assert.strictEqual(buildozer.target, "//ts/src/package2:package2"); 
         assert.strictEqual(buildozer.remove.length, 0); 
         assert.strictEqual(buildozer.add.length, 0); 
         assert.strictEqual(StubData.count(), 1);
@@ -117,7 +117,7 @@ suite.only("Remove Deps", () => {
     });
 
     suiteTeardown( async () => {
-        teardownStub();
+        teardownStubs();
         await vscode.workspace.saveAll();
         console.log("Deleting directory", testWorkspaceFolder);
         await vscode.commands.executeCommand('workbench.action.closeAllEditors');
