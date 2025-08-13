@@ -4,6 +4,8 @@ import { PkgContext } from '../../model/bazelquery/filescontext';
 import { Attribute } from '../../model/bazelquery/attribute';
 import { TargetInfo } from '../../model/bazelquery/targetinfo';
 import { getConfig } from '../../config/config';
+import { isRejection, isSpawnError } from './error';
+import { showErrorMessage, showWarning } from '../../ui/userinteraction';
 
 const KIND_PATTERN = getConfig("kindPattern");
 
@@ -49,8 +51,37 @@ export async function streamTargetInfosFromFilePaths(filePaths: string[]) {
             targetInfos
         );
     } catch (error) {
-        console.error(error);
+        handleBazelError(error);
         return new PkgContext();
+    }
+}
+
+function handleBazelError(error:unknown) {
+    console.error(error);
+    if (isSpawnError(error)) {
+        if (error.errno === -7) {
+            showErrorMessage("Spawned process has too many arguments");
+            return;
+        }
+        showErrorMessage('System error');
+        return;
+    }
+    if (!isRejection(error)) {
+        return;
+    }
+    switch(error.error.code) {
+        case 2:
+            showErrorMessage("Error in arguments. Verify your kindPattern configuration");
+            break;
+        case 3:
+            showWarning("Partial success");
+            break;
+        case 7:
+            showErrorMessage("Command failed");
+            break;
+        default:
+            showErrorMessage("Error occured in bazel query");
+
     }
 }
 

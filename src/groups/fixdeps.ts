@@ -3,7 +3,7 @@ import { fsToWsPath } from '../util/path/filepathtools';
 import { uriToBuild } from '../util/path/uritools';
 import { BUILD_FILE, getConfig } from '../config/config';
 import { handleBuildozerError, updateBuildDeps } from '../util/exec/buildozertools';
-import { showDismissableFileMessage, showDismissableMessage, showErrorMessage } from '../ui/userinteraction';
+import { showDismissableFileMessage, showDismissableMessage, showErrorMessage, showWarning } from '../ui/userinteraction';
 import { getImportPathsFromPackage } from '../util/path/packagetools';
 import { ActiveData, PkgCache } from './active';
 import { loadPackageSources } from '../util/path/packagetools';
@@ -58,7 +58,7 @@ export async function chooseFileToFixDeps(file?: vscode.Uri) {
             runDepsFix(file);
             break;
         default:
-            vscode.window.showWarningMessage("Something went wrong");
+            showWarning("Something went wrong");
     }
 };
 
@@ -103,7 +103,7 @@ export async function runDepsFix(file: vscode.Uri | undefined) {
             const cancellationDisposable = token.onCancellationRequested(() => {
                 showDismissableMessage("Dependency fix halted");
                 if (modificationsMade) {
-                    vscode.window.showWarningMessage("Files modified. Check package for incorrect dependencies");
+                    showWarning("Files modified. Check package for incorrect dependencies");
                 }
             });
 

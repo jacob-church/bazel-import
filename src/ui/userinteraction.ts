@@ -9,7 +9,7 @@ export let MAX_PKG_SIZE: number = getConfig("maxPackageSize");
 const DISMISS_BUTTON = "Don't show this again";
 const OPEN_BUTTON = 'Open';
 
-const validateNumber = (text: string) => {
+function validateNumber(text: string) {
     if (!text || text.trim().length === 0) {
         return 'Input cannot be empty.';
     }
@@ -31,7 +31,7 @@ const validateNumber = (text: string) => {
     return undefined;
 };
 
-export const updateMaxPackageSize = async () => {
+export async function updateMaxPackageSize() {
     const maxSize = await vscode.window.showInputBox({
         placeHolder: "New size",
         prompt: `Enter maximum package size (current size: ${getConfig("maxPackageSize")}`,
@@ -48,7 +48,11 @@ export const updateMaxPackageSize = async () => {
     }
 };
 
-export const showErrorMessage = (message: string, fileUri?: vscode.Uri) => {
+export function showErrorMessage(message: string, fileUri?: vscode.Uri) {
+    if (fileUri === undefined) {
+        vscode.window.showErrorMessage(message);
+        return;
+    }
     vscode.window
         .showErrorMessage(message, OPEN_BUTTON)
         .then((button) => {
@@ -58,7 +62,7 @@ export const showErrorMessage = (message: string, fileUri?: vscode.Uri) => {
         });
 };
 
-export const showDismissableFileMessage = (message: string, fileUri?: vscode.Uri) => {
+export function showDismissableFileMessage(message: string, fileUri?: vscode.Uri) {
     if (!getConfig("notifyChange")) {
         return;
     }
@@ -74,7 +78,7 @@ export const showDismissableFileMessage = (message: string, fileUri?: vscode.Uri
         });
 };
 
-export const showDismissableMessage = (message: string) => {
+export function showDismissableMessage(message: string) {
     if (!getConfig("notifyChange")) {
         return; 
     }
@@ -87,6 +91,10 @@ export function setDeletionStatus(fileName: string) {
         new vscode.MarkdownString(`Deletions ${enabledStatus} for\n\`${fileName}\``),
         '$(wand)'
     );
+}
+
+export function showWarning(message: string) {
+    vscode.window.showWarningMessage(message);
 }
 
 export function showChangeMaxSize(text: string) {

@@ -1,8 +1,8 @@
-import { ExecException } from 'child_process';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { showDismissableFileMessage, showDismissableMessage, showErrorMessage } from '../../ui/userinteraction';
 import { executeCommand } from './exectools';
+import { isRejection } from './error';
 
 export function handleBuildozerError(
     { error, msgSuccess = "Dependencies already up to date", msgFail = "Failed to analyze dependencies", uri = undefined
@@ -23,21 +23,6 @@ export function handleBuildozerError(
         showErrorMessage(msgFail);
         console.error(error);
     }
-}
-
-type BuildozerRejection = {
-    error: ExecException;
-    stderr: string;
-};
-
-function isRejection(error: unknown): error is BuildozerRejection {
-    return (
-        typeof error === 'object' &&
-        error !== null &&
-        'error' in error &&
-        'stderr' in error &&
-        typeof (error as BuildozerRejection).stderr === 'string'
-    );
 }
 
 export async function updateBuildDeps(
