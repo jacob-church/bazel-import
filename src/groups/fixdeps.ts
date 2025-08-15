@@ -5,7 +5,6 @@ import { BUILD_FILE, getConfig } from '../config/config';
 import { handleBuildozerError, updateBuildDeps } from '../util/exec/buildozertools';
 import { showDismissableFileMessage, showDismissableMessage, showErrorMessage, showWarning } from '../ui/userinteraction';
 import { getImportPathsFromPackage } from '../util/path/packagetools';
-import { ActiveData, PkgCache } from './active';
 import { loadPackageSources } from '../util/path/packagetools';
 import * as assert from 'assert';
 import { streamTargetInfosFromFilePaths } from '../util/exec/bazeltools';
@@ -122,22 +121,17 @@ export async function runDepsFix(file: vscode.Uri | undefined) {
             if (shouldHalt(buildUri === undefined, "No build target found")) { return; }
             assert(buildUri !== undefined); // Type checker
 
-            // Check cache and load on miss 
-            let data: ActiveData | undefined = PkgCache.get(buildUri.toString());
-            if (data === undefined) {
-                // TODO: consider putting this in a method and use in active.ts
-                const [pkgcontext, packageSources, name] = await loadPackageSources(file, buildUri) ?? [, ,];
-                if (pkgcontext === undefined) {
-                    showErrorMessage("Error in package--failed to run deps fix");
-                    return;
-                }
-                data = {
-                    context: pkgcontext,
-                    packageSources: packageSources,
-                    buildUri: buildUri
-                };
-                PkgCache.set(buildUri.toString(), data);
+
+            const [pkgcontext, packageSources, name] = await loadPackageSources(file, buildUri) ?? [, ,];
+            if (pkgcontext === undefined) {
+                showErrorMessage("Error in package--failed to run deps fix");
+                return;
             }
+            const data = {
+                context: pkgcontext,
+                packageSources: packageSources,
+                buildUri: buildUri
+            };
 
             const wsPath = fsToWsPath(file.fsPath);
             const pkgInfo = data.context.getInfo(wsPath); // TODO fix for build file? (no bc it's not just one target?)
