@@ -18,6 +18,8 @@ This extension assumes:
 - you have `bazel` installed on your system
 - your changes capture a full import for automated updates (i.e., line adds/deletes instead of single character adds/deletes)
 - your build files have dependency array for manual updates
+- your vscode workspace folder is the same as your [bazel workspace/repository root](https://bazel.build/concepts/build-ref)
+- your external dependencies are npm packages
 
 ## Extension Settings
 
@@ -59,7 +61,7 @@ Excludes dependencies from the dependency fix. Use for hidden dependencies, whic
 
 <details> 
 <summary><code>bazel-import.fixDepsOnCurrent</code></summary> 
-Automatically run deps fix on the current file instead of prompting the user to select one.
+Automatically run deps fix on the current file instead of prompting the user to select one. Default <code>false</code>
 </details>
 
 <details> 
@@ -77,12 +79,15 @@ For example, if an import path refers to generated files that lack build informa
 
 <details> 
 <summary><code>bazel-import.defaultRoot</code></summary> 
-Default path relative to the home directory for running commands if no workspace folder is found.
+Default path relative to the home directory for running commands if no workspace folder is found. The default bazel repository root
 </details>
 
 <details>
 <summary><code>bazel-import.bazelShutdownOnActivation</code></summary>
-Shuts down a currently running bazel server when the extension first activates. May be useful for fixing issues with the bazel server
+Shuts down a currently running bazel server when the extension first activates. May be useful for fixing issues with the bazel server.
+
+Off by default.
+
 </details>
 
 ## Release Notes

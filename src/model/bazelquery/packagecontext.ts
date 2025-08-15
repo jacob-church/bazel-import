@@ -1,17 +1,6 @@
 import { TargetInfo } from './targetinfo';
 
-
-export interface FilesContext<K, M, V> {
-    has(wsPath: K): boolean;
-    getTarget(wsPath: K): M | undefined;
-    getInfo(wsPath: K): V | undefined;
-    empty(): boolean;
-
-    // Relative path to target
-    targetMap: Map<K, M>;
-    targetInfos: Map<M, V>;
-}
-export class PkgContext implements FilesContext<string, string, TargetInfo> {
+export class PkgContext {
     targetMap: Map<string, string>;
     targetInfos: Map<string, TargetInfo>;
 

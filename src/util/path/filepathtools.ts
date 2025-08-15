@@ -5,7 +5,7 @@ import * as fs from 'fs';
 import { homedir } from 'os';
 import { Cache } from '../../model/basecache';
 import { getConfig } from '../../config/config';
-import { FilesContext } from '../../model/bazelquery/filescontext';
+import { PkgContext } from '../../model/bazelquery/packagecontext';
 import { TargetInfo } from '../../model/bazelquery/targetinfo';
 import { uriToBuild } from './uritools';
 import { builtinModules } from 'module';
@@ -126,7 +126,12 @@ export function fsToRelativePath(fsPath: string) {
     return vscode.workspace.asRelativePath(fsPath);
 }
 
-// File system to Workspace Path
+/**
+ * A workspace path is essentially a [bazel label](https://bazel.build/concepts/labels)
+ * with the ':' replaced with '/'
+ * @param fsPath A file system path
+ * @returns A workspace path 
+ */
 export function fsToWsPath(fsPath: string) {
     return '//' + fsToRelativePath(fsPath);
 }
@@ -151,7 +156,7 @@ export function getRoot() {
     return root; 
 }
 
-export function pathsToTargets(importPaths: string[], context: FilesContext<string, string, TargetInfo>): Set<string> {
+export function pathsToTargets(importPaths: string[], context: PkgContext): Set<string> {
     const targets = new Set<string>();
     for (const importPath of importPaths) {
         const wsPath = fsToWsPath(importPath);

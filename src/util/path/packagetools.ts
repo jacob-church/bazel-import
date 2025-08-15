@@ -3,7 +3,7 @@ import * as path from 'path';
 import {ActiveFile} from '../../model/activeFile';
 import {MAX_PKG_SIZE} from '../../ui/userinteraction';
 import {getFullPathsFromFile} from '../filetext/importtools';
-import { FilesContext } from '../../model/bazelquery/filescontext';
+import { PkgContext } from '../../model/bazelquery/packagecontext';
 import { TargetInfo } from '../../model/bazelquery/targetinfo';
 import { streamTargetInfosFromFilePaths } from '../exec/bazeltools';
 import { fsToWsPath } from './filepathtools';
@@ -33,7 +33,7 @@ function uriToPkgString(uri: vscode.Uri) {
     return pkgDir + ':*';
 }
 
-export async function loadPackageSources(fileUri: vscode.Uri, buildUri: vscode.Uri): Promise<[FilesContext<string, string, TargetInfo>, vscode.Uri[], string] | undefined> {
+export async function loadPackageSources(fileUri: vscode.Uri, buildUri: vscode.Uri): Promise<[PkgContext, vscode.Uri[], string] | undefined> {
     const pkgString = uriToPkgString(buildUri);
     const context = await streamTargetInfosFromFilePaths([pkgString]);
 

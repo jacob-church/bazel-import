@@ -1,6 +1,6 @@
 import { executeCommand, processCommandStream } from './exectools';
 import { fsToRelativePath, getRoot } from '../path/filepathtools';
-import { PkgContext } from '../../model/bazelquery/filescontext';
+import { PkgContext } from '../../model/bazelquery/packagecontext';
 import { Attribute } from '../../model/bazelquery/attribute';
 import { TargetInfo } from '../../model/bazelquery/targetinfo';
 import { getConfig } from '../../config/config';
@@ -39,10 +39,10 @@ export async function streamTargetInfosFromFilePaths(filePaths: string[]) {
                 deps: deps?.stringListValue ?? []
             };
 
-            setSafe(targetInfos, name, info);
+            setIfNotPresent(targetInfos, name, info);
             for (const src of info.srcs) {
                 const srcFile = src.replace(':', '/');
-                setSafe(targetMap, srcFile, name);
+                setIfNotPresent(targetMap, srcFile, name);
             }
         }, cwd);
 
@@ -86,7 +86,7 @@ function handleBazelError(error:unknown) {
 }
 
 // Sets a value on a map without overwriting
-function setSafe<K,V>(map: Map<K,V>, key: K, value: V) {
+function setIfNotPresent<K,V>(map: Map<K,V>, key: K, value: V) {
     if (map.has(key)) {
         console.debug(`Attempted to overwrite ${key}:${map.get(key)} with ${value}`);
     } else {

@@ -20,7 +20,7 @@ export const BUILD_FILE: string = getConfig(BUILDFILE);
  * @param section defaults to the main config
  * @returns a configuration value if it exists
  */
-export function getConfig(subsection: ConfigKey, section: string = MAIN_CONFIG): any {
-    const configValue = vscode.workspace.getConfiguration(section).get(subsection);
+export function getConfig(subsection: ConfigKey): any {
+    const configValue = vscode.workspace.getConfiguration(MAIN_CONFIG).get(subsection);
     return configValue; 
 }

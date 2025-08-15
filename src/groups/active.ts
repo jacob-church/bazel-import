@@ -8,18 +8,16 @@ import * as path from 'path';
 import { fsToWsPath } from '../util/path/filepathtools';
 import { uriToBuild } from '../util/path/uritools';
 import { loadPackageSources, packageTooLarge } from '../util/path/packagetools';
-import { TargetInfo } from '../model/bazelquery/targetinfo';
-import { FilesContext } from '../model/bazelquery/filescontext';
-
-export {cache as PkgCache};
+import { PkgContext } from '../model/bazelquery/packagecontext';
 
 export const CHANGE_PACKAGE_LIMIT_BUTTON = 'Change max package size';
 const CACHE_SIZE: number = Number(getConfig("maxCacheSize"));
 const cache = new Cache<string, ActiveData>(CACHE_SIZE);
+export {cache as PkgCache};
 const DELETION_ENABLED = getConfig("enableDeletion");
 
 export interface ActiveData {
-    context: FilesContext<string, string, TargetInfo>
+    context: PkgContext
     packageSources: Array<vscode.Uri>, // Uri string representation
     buildUri: vscode.Uri;
 }

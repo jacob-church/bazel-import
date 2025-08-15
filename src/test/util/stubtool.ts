@@ -2,8 +2,8 @@ import * as buildozer from '../../util/exec/buildozertools';
 import * as bazel from '../../util/exec/bazeltools';
 import * as fptools from '../../util/path/filepathtools';
 import * as vscode from 'vscode';
-import { PkgContext } from '../../model/bazelquery/filescontext';
-import {fsToRelativePath, fsToWsPath} from '../../util/path/filepathtools';
+import { PkgContext } from '../../model/bazelquery/packagecontext';
+import { TargetInfo } from '../../model/bazelquery/targetinfo';
 
 const stubs = new Map<string, PropertyDescriptor>();
 
@@ -48,17 +48,31 @@ async function replaceUpdateBuildDeps({ addDeps, removeDeps, buildTarget, fileUr
     }
 };
 
-function pathsMatch(filePaths: string[], matcher: string[]) {
-    
-}
-
+// Example of what the stubbed function could use
 function pathContext(filePath:string) {
-    if (filePath.includes('package1:*')) {
-        new PkgContext();
+    const targetMap = new Map<string, string>();
+    const targetInfos = new Map<string, TargetInfo>();
+    if (filePath.includes('/ts/src/package1:*')) {
+        targetInfos.set(
+            '//ts/src/package1:package1',
+            {
+                name: '//ts/src/package1:package1',
+                deps: ['//ts/src/package2:package2', '//ts/src/package3:package3', '//ts/src/package3/package4:package4'],
+                srcs: ['//ts/src/package1:test1.ts']
+            }
+        );
+        targetMap.set(
+            '//ts/src/package1/test1.ts', 
+            '//ts/src/package1:package1'
+        );
     }
-    return new PkgContext();
+    return new PkgContext(
+        targetMap, 
+        targetInfos
+    );
 }
 
+// TODO: consider replacing bazel queries with stubbed function returning what the bazel queries would return
 async function replaceStreamTargetInfosFromFilePaths(filePaths: string[]): Promise<PkgContext> {
     if (filePaths.length === 1){
         return pathContext(filePaths[0]);

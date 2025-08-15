@@ -4,6 +4,4 @@ node_modules
 .vscode-test/
 *.vsix
 PAT
-scripts/configupdate.js
-scripts/configupdate.js.map
-src/config/generated.ts
+
