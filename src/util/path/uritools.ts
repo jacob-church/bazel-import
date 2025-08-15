@@ -6,9 +6,9 @@ import { BUILD_FILE } from '../../config/config';
 
 export function uriEquals(uri1: vscode.Uri | undefined, uri2: vscode.Uri | undefined): boolean {
     if (uri1 === undefined || uri2 === undefined) {
-        return false; 
+        return false;
     }
-    
+
     return (uri1.toString() === uri2.toString());
 }
 
@@ -20,7 +20,7 @@ export function bazelLabelToUri(src: string): vscode.Uri {
 
 export function bazelLabelToUris(srcs: string[]) {
     return srcs.map(bazelLabelToUri);
-}export function uriToBuild(fileUri: vscode.Uri): vscode.Uri | undefined {
+} export function uriToBuild(fileUri: vscode.Uri): vscode.Uri | undefined {
     const configPath = ts.findConfigFile(path.dirname(fileUri.fsPath), ts.sys.fileExists, BUILD_FILE);
     if (!configPath) {
         return undefined;

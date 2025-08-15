@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import {ActiveFile} from '../../model/activeFile';
-import {MAX_PKG_SIZE} from '../../ui/userinteraction';
-import {getFullPathsFromFile} from '../filetext/importtools';
+import { ActiveFile } from '../../model/activeFile';
+import { MAX_PKG_SIZE } from '../../ui/userinteraction';
+import { getFullPathsFromFile } from '../filetext/importtools';
 import { PkgContext } from '../../model/bazelquery/packagecontext';
 import { TargetInfo } from '../../model/bazelquery/targetinfo';
 import { streamTargetInfosFromFilePaths } from '../exec/bazeltools';
@@ -18,7 +18,7 @@ export async function getImportPathsFromPackage(packageSources: vscode.Uri[]): P
         paths.push(...path);
     }
     return [paths, externalTargets];
-} 
+}
 
 export function packageTooLarge(): boolean {
     return (ActiveFile.data.packageSources.length ?? MAX_PKG_SIZE + 1) > MAX_PKG_SIZE;
@@ -41,7 +41,7 @@ export async function loadPackageSources(fileUri: vscode.Uri, buildUri: vscode.U
     const info = context.getInfo(wsPath);
 
     if (info === undefined) {
-        return undefined; 
+        return undefined;
     }
 
     const packageSources = bazelLabelToUris(info.srcs);

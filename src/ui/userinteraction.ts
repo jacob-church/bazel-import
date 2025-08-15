@@ -1,10 +1,10 @@
-import * as vscode from 'vscode'; 
+import * as vscode from 'vscode';
 import { getConfig, MAIN_CONFIG } from '../config/config';
 import { updateStatusBar } from '../extension';
 import { packageTooLarge } from '../util/path/packagetools';
 import { CHANGE_PACKAGE_LIMIT_BUTTON } from '../groups/active';
 
-export let MAX_PKG_SIZE: number = getConfig("maxPackageSize"); 
+export let MAX_PKG_SIZE: number = getConfig("maxPackageSize");
 
 const DISMISS_BUTTON = "Don't show this again";
 const OPEN_BUTTON = 'Open';
@@ -27,7 +27,7 @@ function validateNumber(text: string) {
     if (num <= 0) {
         return 'Please enter a number greater than zero.';
     }
-    
+
     return undefined;
 };
 
@@ -36,10 +36,10 @@ export async function updateMaxPackageSize() {
         placeHolder: "New size",
         prompt: `Enter maximum package size (current size: ${getConfig("maxPackageSize")}`,
         validateInput: validateNumber
-    }); 
+    });
 
     if (maxSize) {
-        await vscode.workspace.getConfiguration(MAIN_CONFIG).update('maxPackageSize', maxSize); 
+        await vscode.workspace.getConfiguration(MAIN_CONFIG).update('maxPackageSize', maxSize);
         vscode.window.showInformationMessage(`New maximum package size: ${getConfig("maxPackageSize")}`);
         MAX_PKG_SIZE = parseInt(maxSize);
     }
@@ -80,7 +80,7 @@ export function showDismissableFileMessage(message: string, fileUri?: vscode.Uri
 
 export function showDismissableMessage(message: string) {
     if (!getConfig("notifyChange")) {
-        return; 
+        return;
     }
     vscode.window.showInformationMessage(message);
 };

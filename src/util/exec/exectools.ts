@@ -2,7 +2,7 @@ import { exec, spawn } from 'child_process';
 import * as readline from 'readline';
 
 export async function executeCommand(command: string, cwd?: string): Promise<string> {
-    const options = cwd ? {cwd: cwd} : {};
+    const options = cwd ? { cwd: cwd } : {};
     return new Promise((resolve, reject) => {
         exec(command, options, (error, stdout, stderr) => {
             if (error) {
@@ -32,7 +32,7 @@ export async function processCommandStream(command: string, args: string[], onRu
     return new Promise((resolve, reject) => {
         const child = spawn(command, args, options);
         let stderr = '';
-        
+
         // Create a readline interface to handle lines and backpressure correctly
         const rl = readline.createInterface({ input: child.stdout });
 

@@ -1,4 +1,4 @@
-import * as vscode from 'vscode'; 
+import * as vscode from 'vscode';
 import * as ts from 'typescript';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -24,7 +24,7 @@ export function resolveSpecifierToFilePath(
     const configPath = ts.findConfigFile(hostFileUri.fsPath, ts.sys.fileExists, 'tsconfig.json');
 
     if (!configPath) {
-        return undefined; 
+        return undefined;
     }
 
     if (!configCache.has(configPath)) {
@@ -59,9 +59,9 @@ export function resolveSpecifierToFilePath(
     );
 
     if (resolved.resolvedModule === undefined) {
-        return undefined; 
+        return undefined;
     }
-    const module = resolved.resolvedModule; 
+    const module = resolved.resolvedModule;
 
     if (module.isExternalLibraryImport) {
         if (module.packageId === undefined || builtinModules.includes(module.packageId.name)) {
@@ -90,9 +90,9 @@ function getConfiguration(configPath: string): ts.ParsedCommandLine | undefined 
     const { config, error } = ts.parseConfigFileTextToJson(configPath, configContent);
     if (error) {
         console.error(`Error parsing tsconfig file ${configPath}:`);
-        return; 
+        return;
     }
-        
+
     const parsedCommandLine = ts.parseJsonConfigFileContent(
         config,
         ts.sys,
@@ -105,7 +105,7 @@ function getConfiguration(configPath: string): ts.ParsedCommandLine | undefined 
 export function fpToBuild(fsPath: string) {
     const fileUri = vscode.Uri.file(fsPath);
     const buildUri = uriToBuild(fileUri);
-    return buildUri; 
+    return buildUri;
 }
 
 export function importToFs(currentFile: vscode.Uri, importPath: string): PathOrTarget | undefined {
@@ -150,10 +150,10 @@ export function getRoot() {
     if (wsd !== undefined) {
         return wsd;
     }
-    
-    const rootFromConfig = getConfig("defaultRoot"); 
+
+    const rootFromConfig = getConfig("defaultRoot");
     const root = path.join(homedir(), rootFromConfig);
-    return root; 
+    return root;
 }
 
 export function pathsToTargets(importPaths: string[], context: PkgContext): Set<string> {

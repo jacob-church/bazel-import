@@ -13,7 +13,7 @@ import { ENABLEADDITION, ENABLEDELETION } from './config/generated';
 
 export async function activate(context: vscode.ExtensionContext) {
     const bazelCommand = vscode.commands.registerCommand(OPEN_BAZEL_COMMAND, async () => {
-        const activeUri = vscode.window.activeTextEditor?.document.uri;    
+        const activeUri = vscode.window.activeTextEditor?.document.uri;
         if (activeUri) {
             const buildFileUri = uriToBuild(activeUri);
             if (buildFileUri) {
@@ -34,7 +34,7 @@ export async function activate(context: vscode.ExtensionContext) {
         // DELETIONS
         if (savedActiveFile && !packageTooLarge() && getConfig(ENABLEDELETION)) {
             removeDeps(changeEvent, savedActiveFile);
-            ActiveFile.data.documentState = changeEvent.document.getText(); 
+            ActiveFile.data.documentState = changeEvent.document.getText();
         }
         if (getConfig(ENABLEADDITION)) {
             addDeps(changeEvent, savedActiveFile);
@@ -48,12 +48,12 @@ export async function activate(context: vscode.ExtensionContext) {
     const statusBarCommand = activateStatusBarCommand();
 
     context.subscriptions.push(
-        bazelCommand, 
-        changeEditorListener, 
-        changeTextListener, 
-        activeStatusBarItem, 
-        statusBarCommand, 
-        fileCreationListener, 
+        bazelCommand,
+        changeEditorListener,
+        changeTextListener,
+        activeStatusBarItem,
+        statusBarCommand,
+        fileCreationListener,
         fileDeletionListener
     );
     if (getConfig("bazelShutdownOnActivation")) {
@@ -77,7 +77,7 @@ export enum ExtensionState {
 let extensionState: ExtensionState = ExtensionState.inactive;
 
 export function getExtensionState(): ExtensionState {
-    return extensionState; 
+    return extensionState;
 }
 
 /**
@@ -85,7 +85,7 @@ export function getExtensionState(): ExtensionState {
  * @param state updates the state of the extension
  */
 export function setExtensionState(state: ExtensionState): void {
-    extensionState = state; 
+    extensionState = state;
 }
 
 const activeStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);

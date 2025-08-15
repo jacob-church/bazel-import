@@ -14,12 +14,12 @@ export async function onCreateOrDeleteFile(event: vscode.FileCreateEvent | vscod
 
         counts += PkgCache.delete(pkg) ? 1 : 0;
     }
-    console.debug(`Invalidated ${counts} cache entries`); 
+    console.debug(`Invalidated ${counts} cache entries`);
 }
 
 function getBuildUris(files: readonly vscode.Uri[]) {
     return new Set(files.map((file) => {
-        const uri = fpToBuild(file.fsPath); 
+        const uri = fpToBuild(file.fsPath);
         return uri?.toString();
     }));
 }

@@ -11,7 +11,7 @@ export interface ActiveFileData {
     context: PkgContext
 }
 
-export class ActiveFile  {
+export class ActiveFile {
     private static _data: ActiveFileData;
 
     public static get data(): ActiveFileData {

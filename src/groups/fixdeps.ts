@@ -36,7 +36,7 @@ export async function chooseFileToFixDeps(file?: vscode.Uri) {
             label: SELECT_FILE
         },
     ];
-    
+
     const selection = await vscode.window.showQuickPick(options, {
         placeHolder: "Select a file to fix bazel deps for its package",
         canPickMany: false, // User can only pick one
@@ -69,7 +69,7 @@ async function getFile() {
             : undefined
     );
 
-    const fileUri =  await vscode.window.showOpenDialog({
+    const fileUri = await vscode.window.showOpenDialog({
         canSelectFiles: true,
         canSelectFolders: false,
         canSelectMany: false,
@@ -83,14 +83,14 @@ async function getFile() {
         defaultUri: startUri,
     });
 
-    return (fileUri && fileUri.length > 0) ? fileUri[0] : undefined; 
+    return (fileUri && fileUri.length > 0) ? fileUri[0] : undefined;
 };
 
 export async function runDepsFix(file: vscode.Uri | undefined) {
     if (file === undefined) {
         console.error("File not defined");
         showDismissableMessage("No file selected");
-        return; 
+        return;
     }
     console.debug("Running deps on", file);
     return vscode.window.withProgress({
@@ -99,7 +99,7 @@ export async function runDepsFix(file: vscode.Uri | undefined) {
         cancellable: true
     }, async (progress, token) => {
         try {
-            let modificationsMade = false; 
+            let modificationsMade = false;
             const cancellationDisposable = token.onCancellationRequested(() => {
                 showDismissableMessage("Dependency fix halted");
                 if (modificationsMade) {
@@ -117,7 +117,7 @@ export async function runDepsFix(file: vscode.Uri | undefined) {
             };
 
             // Get build target
-            progress.report({message: "loading package context"});
+            progress.report({ message: "loading package context" });
             const buildUri = uriToBuild(file);
             if (shouldHalt(buildUri === undefined, "No build target found")) { return; }
             assert(buildUri !== undefined); // Type checker
@@ -126,7 +126,7 @@ export async function runDepsFix(file: vscode.Uri | undefined) {
             let data: ActiveData | undefined = PkgCache.get(buildUri.toString());
             if (data === undefined) {
                 // TODO: consider putting this in a method and use in active.ts
-                const [pkgcontext, packageSources, name] = await loadPackageSources(file, buildUri) ?? [,,];
+                const [pkgcontext, packageSources, name] = await loadPackageSources(file, buildUri) ?? [, ,];
                 if (pkgcontext === undefined) {
                     showErrorMessage("Error in package--failed to run deps fix");
                     return;
@@ -136,7 +136,7 @@ export async function runDepsFix(file: vscode.Uri | undefined) {
                     packageSources: packageSources,
                     buildUri: buildUri
                 };
-                PkgCache.set(buildUri.toString(), data); 
+                PkgCache.set(buildUri.toString(), data);
             }
 
             const wsPath = fsToWsPath(file.fsPath);
@@ -146,10 +146,10 @@ export async function runDepsFix(file: vscode.Uri | undefined) {
             const preFixDeps = new Set(pkgInfo.deps);
             console.debug("Prefix deps", preFixDeps);
 
-            progress.report({message: `finding dependencies for ${data.packageSources.length} source file(s)`});
+            progress.report({ message: `finding dependencies for ${data.packageSources.length} source file(s)` });
             const [importPaths, externalTargets] = await getImportPathsFromPackage(data.packageSources);
 
-            const uniqueImportPaths = Array.from(new Set(importPaths)); 
+            const uniqueImportPaths = Array.from(new Set(importPaths));
             const context = await streamTargetInfosFromFilePaths(uniqueImportPaths);
 
             const currentDependencyTargets = pathsToTargets(importPaths, context);
@@ -161,7 +161,7 @@ export async function runDepsFix(file: vscode.Uri | undefined) {
             console.debug("Current dependencies", currentDependencyTargets);
             if (shouldHalt(currentDependencyTargets.size === 0)) { return; }
 
-            progress.report({message: "comparing dependencies and modifying build file"});
+            progress.report({ message: "comparing dependencies and modifying build file" });
             const removeDeps: string[] = [];
             for (const target of preFixDeps) {
                 if (!currentDependencyTargets.delete(target) && isIncluded(target)) {
@@ -169,7 +169,7 @@ export async function runDepsFix(file: vscode.Uri | undefined) {
                 }
             }
             const addDeps: string[] = Array.from(currentDependencyTargets);
-            console.debug("Add", addDeps, "Remove", removeDeps); 
+            console.debug("Add", addDeps, "Remove", removeDeps);
             if (shouldHalt((addDeps.length === 0 && removeDeps.length === 0), "Dependencies already up to date")) { return; }
 
             modificationsMade = await updateBuildDeps({ addDeps, removeDeps, buildTarget: pkgInfo.name, fileUri: file });
@@ -177,7 +177,7 @@ export async function runDepsFix(file: vscode.Uri | undefined) {
                 `Removed ${removeDeps.length} and added ${addDeps.length} dep(s) to ${BUILD_FILE}`,
                 buildUri
             );
-            
+
             cancellationDisposable.dispose();
         } catch (error) {
             handleBuildozerError({ error });
@@ -193,7 +193,7 @@ export async function runDepsFix(file: vscode.Uri | undefined) {
 function isIncluded(dep: string) {
     for (const exclusion of EXCLUDED_DEPENDENCIES) {
         if (dep.includes(exclusion)) {
-            return false; 
+            return false;
         }
     }
     return true;

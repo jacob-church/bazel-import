@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { Cache } from '../model/basecache';
-import {ExtensionState, setExtensionState, updateStatusBar} from '../extension';
+import { ExtensionState, setExtensionState, updateStatusBar } from '../extension';
 import { getConfig, TS_LANGUAGE_ID } from '../config/config';
 import { ActiveFile } from '../model/activeFile';
 import { MAX_PKG_SIZE, setDeletionStatus, showChangeMaxSize, showErrorMessage } from '../ui/userinteraction';
@@ -13,7 +13,7 @@ import { PkgContext } from '../model/bazelquery/packagecontext';
 export const CHANGE_PACKAGE_LIMIT_BUTTON = 'Change max package size';
 const CACHE_SIZE: number = Number(getConfig("maxCacheSize"));
 const cache = new Cache<string, ActiveData>(CACHE_SIZE);
-export {cache as PkgCache};
+export { cache as PkgCache };
 const DELETION_ENABLED = getConfig("enableDeletion");
 
 export interface ActiveData {
@@ -26,11 +26,11 @@ export async function updateActiveEditor(editor: vscode.TextEditor | undefined) 
     if (editor === undefined || !DELETION_ENABLED) {
         return;
     }
-    setExtensionState(ExtensionState.inactive); 
+    setExtensionState(ExtensionState.inactive);
 
-    const document = editor.document; 
+    const document = editor.document;
     const fileName = path.basename(document.fileName);
-    
+
     if (document.languageId !== TS_LANGUAGE_ID) {
         updateStatusBar(
             new vscode.MarkdownString('Bazel import deletion only works with `typescript` files'),
@@ -38,7 +38,7 @@ export async function updateActiveEditor(editor: vscode.TextEditor | undefined) 
         );
         return;
     }
-    
+
     const buildUri = uriToBuild(document.uri);
     if (buildUri === undefined) {
         updateStatusBar(
@@ -82,7 +82,7 @@ async function updateActiveFile(value: ActiveData | undefined, buildUri: vscode.
     }
     else {
         console.debug("Cache miss", buildUri.toString());
-        const [context, packageSources, target] = await loadPackageSources(document.uri, buildUri) ?? [,,];
+        const [context, packageSources, target] = await loadPackageSources(document.uri, buildUri) ?? [, ,];
         if (context === undefined) {
             showErrorMessage("Package failed to load");
             updateStatusBar(
@@ -112,7 +112,7 @@ async function updateActiveFile(value: ActiveData | undefined, buildUri: vscode.
 
 /**
  * Sets the deletion enabled flag depending on the size of the current package
- */ 
+ */
 function validatePackageSize() {
     if (packageTooLarge()) {
         showChangeMaxSize(`${ActiveFile.data.packageSources.length} file(s) in package. Increase max package size? (current max: ${MAX_PKG_SIZE})`);

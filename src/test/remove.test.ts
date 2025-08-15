@@ -15,13 +15,13 @@ process.on('exit', (code) => cleanupGraceful(code, testWorkspaceFolder));
 async function awaitState(state: ExtensionState) {
     const waiter = new Promise<void>(resolve => {
         let interval = setInterval(() => {
-                if (getExtensionState() === state) {
-                    clearInterval(interval);
-                    resolve();
-                }
-            }, 500);
+            if (getExtensionState() === state) {
+                clearInterval(interval);
+                resolve();
+            }
+        }, 500);
     });
-    await waiter; 
+    await waiter;
 }
 
 suite("Remove Deps", () => {
@@ -30,7 +30,7 @@ suite("Remove Deps", () => {
     let package2: string;
 
     suiteSetup(async () => {
-        ({testWorkspaceFolder, package1, package2} = await setupWorkspace());
+        ({ testWorkspaceFolder, package1, package2 } = await setupWorkspace());
         setupStubs(testWorkspaceFolder);
     });
 
@@ -52,7 +52,7 @@ suite("Remove Deps", () => {
     // Remove all imports --> test that it removes import from all (check bazel build for empty/no deps)
     // One import --> test that it removes one import [reorder these]
     test("Should remove unnecessary dependencies from bazel BUILD", async () => {
-        
+
         const testUri = vscode.Uri.file(path.join(package1, "test1.ts"));
 
         let editor = await vscode.window.showTextDocument(testUri);
@@ -66,12 +66,12 @@ suite("Remove Deps", () => {
 
         await awaitState(ExtensionState.ready);
 
-        let buildozer: StubDozer = StubData.mostRecent(); 
+        let buildozer: StubDozer = StubData.mostRecent();
 
         assert.strictEqual(buildozer.target, "//ts/src/package1:package1");
         assert(buildozer.remove.includes("//ts/src/package2:package2"));
         assert.strictEqual(buildozer.remove.length, 1);
-        assert.strictEqual(buildozer.add.length, 0); 
+        assert.strictEqual(buildozer.add.length, 0);
         assert.strictEqual(StubData.count(), 1);
 
         await editor.edit(editBuilder => {
@@ -82,12 +82,12 @@ suite("Remove Deps", () => {
         await awaitState(ExtensionState.ready);
 
         buildozer = StubData.mostRecent();
-        
-        assert.strictEqual(buildozer.target,"//ts/src/package1:package1");
+
+        assert.strictEqual(buildozer.target, "//ts/src/package1:package1");
         assert(buildozer.remove.includes("//ts/src/package3:package3"));
         assert(buildozer.remove.includes("//ts/src/package3/package4:package4"));
         assert.strictEqual(buildozer.remove.length, 2);
-        assert.strictEqual(buildozer.add.length, 0); 
+        assert.strictEqual(buildozer.add.length, 0);
         assert.strictEqual(StubData.count(), 2);
         await editor.document.save();
     });
@@ -96,27 +96,27 @@ suite("Remove Deps", () => {
 
         const testUri = vscode.Uri.file(path.join(package2, "sub2", "test2a.ts"));
 
-        const editor = await vscode.window.showTextDocument(testUri); 
-        await awaitState(ExtensionState.active); 
+        const editor = await vscode.window.showTextDocument(testUri);
+        await awaitState(ExtensionState.active);
 
         // Delete imports that won't change dependencies
         await editor.edit(editBuilder => {
             const deletion = new vscode.Range(0, 0, 4, 0);
-            editBuilder.delete(deletion); 
+            editBuilder.delete(deletion);
         });
 
-        await awaitState(ExtensionState.ready); 
+        await awaitState(ExtensionState.ready);
 
         let buildozer: StubDozer = StubData.mostRecent();
 
-        assert.strictEqual(buildozer.target, "//ts/src/package2:package2"); 
-        assert.strictEqual(buildozer.remove.length, 0); 
-        assert.strictEqual(buildozer.add.length, 0); 
+        assert.strictEqual(buildozer.target, "//ts/src/package2:package2");
+        assert.strictEqual(buildozer.remove.length, 0);
+        assert.strictEqual(buildozer.add.length, 0);
         assert.strictEqual(StubData.count(), 1);
         await editor.document.save();
     });
 
-    suiteTeardown( async () => {
+    suiteTeardown(async () => {
         teardownStubs();
         await vscode.workspace.saveAll();
         console.log("Deleting directory", testWorkspaceFolder);

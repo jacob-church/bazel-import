@@ -16,7 +16,7 @@ function stub(obj: any, methodName: string, stubImplementation: (...args: any[])
     const originalDescriptor = Object.getOwnPropertyDescriptor(obj, methodName);
 
     Object.defineProperty(obj, methodName, {
-        value: stubImplementation, 
+        value: stubImplementation,
         writable: true,
         configurable: true
     });
@@ -25,7 +25,7 @@ function stub(obj: any, methodName: string, stubImplementation: (...args: any[])
         return;
     }
 
-    stubs.set(stubKey(obj, methodName), originalDescriptor); 
+    stubs.set(stubKey(obj, methodName), originalDescriptor);
 }
 
 async function replaceUpdateBuildDeps({ addDeps, removeDeps, buildTarget, fileUri }: {
@@ -49,7 +49,7 @@ async function replaceUpdateBuildDeps({ addDeps, removeDeps, buildTarget, fileUr
 };
 
 // Example of what the stubbed function could use
-function pathContext(filePath:string) {
+function pathContext(filePath: string) {
     const targetMap = new Map<string, string>();
     const targetInfos = new Map<string, TargetInfo>();
     if (filePath.includes('/ts/src/package1:*')) {
@@ -62,19 +62,19 @@ function pathContext(filePath:string) {
             }
         );
         targetMap.set(
-            '//ts/src/package1/test1.ts', 
+            '//ts/src/package1/test1.ts',
             '//ts/src/package1:package1'
         );
     }
     return new PkgContext(
-        targetMap, 
+        targetMap,
         targetInfos
     );
 }
 
 // TODO: consider replacing bazel queries with stubbed function returning what the bazel queries would return
 async function replaceStreamTargetInfosFromFilePaths(filePaths: string[]): Promise<PkgContext> {
-    if (filePaths.length === 1){
+    if (filePaths.length === 1) {
         return pathContext(filePaths[0]);
     }
     else {
@@ -93,7 +93,7 @@ export function setupStubs(workspaceDirectory: string) {
     }
     stub(fptools, 'fsToWsPath', replaceFsToWsPath);
     stub(fptools, 'wsToFsPath', (wsPath: string) => {
-        return workspaceDirectory + wsPath.substring(1); 
+        return workspaceDirectory + wsPath.substring(1);
     });
     stub(fptools, 'pathsToTargets', (importPaths: string[], context: PkgContext) => {
         const targets = new Set<string>();

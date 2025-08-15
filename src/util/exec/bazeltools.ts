@@ -56,7 +56,7 @@ export async function streamTargetInfosFromFilePaths(filePaths: string[]) {
     }
 }
 
-function handleBazelError(error:unknown) {
+function handleBazelError(error: unknown) {
     console.error(error);
     if (isSpawnError(error)) {
         if (error.errno === -7) {
@@ -69,7 +69,7 @@ function handleBazelError(error:unknown) {
     if (!isRejection(error)) {
         return;
     }
-    switch(error.error.code) {
+    switch (error.error.code) {
         case 2:
             showErrorMessage("Error in arguments. Verify your kindPattern configuration");
             break;
@@ -86,7 +86,7 @@ function handleBazelError(error:unknown) {
 }
 
 // Sets a value on a map without overwriting
-function setIfNotPresent<K,V>(map: Map<K,V>, key: K, value: V) {
+function setIfNotPresent<K, V>(map: Map<K, V>, key: K, value: V) {
     if (map.has(key)) {
         console.debug(`Attempted to overwrite ${key}:${map.get(key)} with ${value}`);
     } else {

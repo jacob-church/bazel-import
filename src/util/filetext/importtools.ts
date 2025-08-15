@@ -10,9 +10,9 @@ const IMPORT_REPLACEMENTS = getConfig("importPathReplacements");
  * @returns the file path of the file's imports
 */
 export async function getFullPathsFromFile(fileUri: vscode.Uri) {
-    const file = await vscode.workspace.openTextDocument(fileUri); 
-    const fileText = file!.getText(); 
-    
+    const file = await vscode.workspace.openTextDocument(fileUri);
+    const fileText = file!.getText();
+
     const filePaths = getFullImportPathsFromTextAndFile(fileText, fileUri);
     return filePaths;
 };
@@ -74,5 +74,5 @@ function importPathReplace(importPath: string) {
             return importPath.replace(find, IMPORT_REPLACEMENTS[find]);
         }
     }
-    return importPath; 
+    return importPath;
 }

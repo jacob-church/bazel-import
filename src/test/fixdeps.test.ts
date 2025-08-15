@@ -1,11 +1,11 @@
-import {setupWorkspace, cleanupWorkspace, cleanupGraceful} from './util/workspacesetup';
+import { setupWorkspace, cleanupWorkspace, cleanupGraceful } from './util/workspacesetup';
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as assert from 'assert';
 import { runDepsFix } from "../groups/fixdeps";
-import {executeCommand} from '../util/exec/exectools';
+import { executeCommand } from '../util/exec/exectools';
 import { updateBuildDeps } from '../util/exec/buildozertools';
-import {setupStubs, StubData, StubDozer} from './util/stubtool';
+import { setupStubs, StubData, StubDozer } from './util/stubtool';
 import { addLineManually, deleteLineManually } from './util/edittools';
 
 let testWorkspaceFolder: string;
@@ -21,7 +21,7 @@ suite("Fix Deps", () => {
     let package4: string;
 
     suiteSetup(async () => {
-        ({testWorkspaceFolder, package1, package2, package3, package4} = await setupWorkspace(true));
+        ({ testWorkspaceFolder, package1, package2, package3, package4 } = await setupWorkspace(true));
         setupStubs(testWorkspaceFolder);
     });
 
@@ -59,8 +59,8 @@ suite("Fix Deps", () => {
         await runDepsFix(documentUri);
 
         const buildozer: StubDozer = StubData.mostRecent();
-        
-        assert.strictEqual(buildozer.target, "//ts/src/package2:package2"); 
+
+        assert.strictEqual(buildozer.target, "//ts/src/package2:package2");
         assert(buildozer.remove.includes("//ts/src/package3/package4:package4"));
         assert.strictEqual(buildozer.add.length, 0);
         assert.strictEqual(buildozer.remove.length, 1);
@@ -83,11 +83,11 @@ suite("Fix Deps", () => {
     });
 
     test("Should update bazel deps", async () => {
-        
+
         const documentUri = vscode.Uri.file(path.join(package1, 'test1.ts'));
         const editor = await vscode.window.showTextDocument(documentUri);
         // Delete deps on lines 1 and 2 (package2 and package 3)
-        
+
         await deleteLineManually(editor, 0);
         await deleteLineManually(editor, 0);
         await addLineManually(editor, "import {test5} from '@test/package5/test5';");

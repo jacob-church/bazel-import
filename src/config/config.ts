@@ -22,5 +22,5 @@ export const BUILD_FILE: string = getConfig(BUILDFILE);
  */
 export function getConfig(subsection: ConfigKey): any {
     const configValue = vscode.workspace.getConfiguration(MAIN_CONFIG).get(subsection);
-    return configValue; 
+    return configValue;
 }

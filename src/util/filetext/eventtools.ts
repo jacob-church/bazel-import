@@ -32,8 +32,8 @@ const isChangeAddition = (change: vscode.TextDocumentContentChangeEvent) => {
 };
 
 function getFullPathsFromEvent(
-    event: vscode.TextDocumentChangeEvent, 
-    textSrc: (change: vscode.TextDocumentContentChangeEvent) => string, 
+    event: vscode.TextDocumentChangeEvent,
+    textSrc: (change: vscode.TextDocumentContentChangeEvent) => string,
     isValid: (change: vscode.TextDocumentContentChangeEvent) => boolean
 ): [string[], string[]] {
     const changes = event.contentChanges;
