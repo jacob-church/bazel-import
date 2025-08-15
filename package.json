@@ -35,35 +35,6 @@
 						"default": "BUILD.bazel",
 						"description": "The file name convention where your build targets are defined."
 					},
-					"bazel-import.importPathPrefixes": {
-						"type": "array",
-						"default": [],
-						"description": "Path prefixes that should be considered for auto-adding Bazel deps. An empty array will consider all imports."
-					},
-					"bazel-import.targetPrefixes": {
-						"type": [
-							"array",
-							"string",
-							"null"
-						],
-						"default": [
-							"/cake/app/webroot/ts",
-							"/extensibility"
-						],
-						"description": "Target prefixes that should be considered for auto-adding Bazel deps."
-					},
-					"bazel-import.externalTargets": {
-						"type": "object",
-						"default": {
-							"@angular/core": "@npm//@angular/core",
-							"@angular/common": "@npm//@angular/common",
-							"@angular/router": "@npm//@angular/router",
-							"@angular/forms": "@npm//@angular/forms",
-							"@angular/platform-browser": "@npm//@angular/platform-browser",
-							"rxjs": "@npm//rxjs"
-						},
-						"description": "External dependency path prefixes and their associated external build targets."
-					},
 					"bazel-import.notifyChange": {
 						"type": "boolean",
 						"default": true,
@@ -84,29 +55,65 @@
 						"default": true,
 						"description": "Remove bazel dependencies"
 					},
+					"bazel-import.enableAddition": {
+						"type": "boolean",
+						"default": true,
+						"description": "Add bazel dependencies"
+					},
 					"bazel-import.excludeDependencies": {
 						"type": [
 							"array",
-							"string",
 							"null"
 						],
 						"default": [
-							"//cake/build"
+							"//cake/build",
+							"@npm//@types/node:node"
 						],
 						"description": "Add hidden dependencies here to avoid checking them (buildozer won't remove them, so this primarily influences the UI)"
+					},
+					"bazel-import.bazelShutdownOnActivation": {
+						"type": "boolean",
+						"default": false,
+						"description": "Stop the current bazel server on extension activation"
+					},
+					"bazel-import.fixDepsOnCurrent": {
+						"type": "boolean",
+						"default": false,
+						"description": "Automatically run fixDeps on the current file"
+					},
+					"bazel-import.kindPattern": {
+						"type": "string",
+						"default": "(ts|js)_library",
+						"description": "Specify the kind of targets that you want to include in dependency analysis."
+					}, 
+					"bazel-import.importPathReplacements": {
+						"type": "object",
+						"default": {
+							"bazel-out/k8-fastbuild/bin/": ""
+						},
+						"description": "Replaces import paths that include the keys with the values"
+					},
+					"bazel-import.defaultRoot": {
+						"type": "string",
+						"default": "",
+						"description": "Sets the default root directory from the home directory if a workspace is not found"
 					}
+
 				}
 			}
 		]
 	},
 	"scripts": {
 		"vscode:prepublish": "npm run compile",
-		"compile": "tsc -p ./",
-		"watch": "tsc -watch -p ./",
+		"compile": "tsc -p ./tsconfig.json",
+		"compile:scripts": "tsc -p ./scripts/tsconfig.json",
+		"compile:all": "npm run compile && npm run compile:scripts",
+		"watch": "tsc -watch -p ./tsconfig.json",
 		"pretest": "npm run compile && npm run lint",
 		"lint": "eslint src --ext ts",
 		"test": "vscode-test",
-		"clean": "rm -r ./out"
+		"clean": "rm -r ./out",
+		"config": "node out/scripts/configupdate.js"
 	},
 	"devDependencies": {
 		"@types/mocha": "^9.1.0",

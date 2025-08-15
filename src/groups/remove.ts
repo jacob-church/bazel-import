@@ -1,11 +1,14 @@
 import * as vscode from 'vscode';
-import {showDismissableFileMessage, showDismissableMessage} from '../userinteraction';
-import {ActiveFile, ActiveFileData} from '../model/activeFile';
-import {getBuildTargetsFromDeletions} from '../util/eventtools';
-import {BUILD_FILE, ExtensionState, setExtensionState} from '../extension';
-import { getBuildTargetsFromPackage } from '../util/packagetools';
-import { uriEquals } from '../util/uritools';
-import { updateBuildDeps, handleBuildozerError } from '../util/exectools';
+import { showDismissableFileMessage, showDismissableMessage, showErrorMessage } from '../ui/userinteraction';
+import { ActiveFile, ActiveFileData } from '../model/activeFile';
+import { getDeletedImportPaths } from '../util/filetext/eventtools';
+import { ExtensionState, setExtensionState } from '../extension';
+import { BUILD_FILE } from '../config/config';
+import { getImportPathsFromPackage } from '../util/path/packagetools';
+import { uriEquals } from '../util/path/uritools';
+import { updateBuildDeps, handleBuildozerError } from '../util/exec/buildozertools';
+import { streamTargetInfosFromFilePaths } from '../util/exec/bazeltools';
+import { pathsToTargets } from '../util/path/filepathtools';
 
 // DELETION
 export async function removeDeps(changeEvent: vscode.TextDocumentChangeEvent, changedFile: ActiveFileData) {
@@ -15,54 +18,63 @@ export async function removeDeps(changeEvent: vscode.TextDocumentChangeEvent, ch
 
     setExtensionState(ExtensionState.waiting);
 
-    // Find the build file(s) for deleted imports
-    const deletedDeps: Set<string> = getBuildTargetsFromDeletions(changedFile.documentState, changeEvent);
-    if (deletedDeps.size === 0) {
+    // Find the file paths for deleted imports
+    const [deletedImports, deletedExternal] = getDeletedImportPaths(changedFile.documentState, changeEvent);
+    if (deletedImports.length === 0 && deletedExternal.length === 0) {
         return;
     }
-    deletedDeps.delete(changedFile.target);
 
-    if (deletedDeps.size === 0) {
-        showDismissableMessage("Bazel deps not removed (deleted import is in package)");
-        return; 
+    const [remainingImports, remainingExternal] = await getImportPathsFromPackage(changedFile.packageSources);
+
+    const context = await streamTargetInfosFromFilePaths(Array.from(new Set(deletedImports.concat(remainingImports))));
+    if (context.empty()) {
+        showErrorMessage("Failed to load context");
+        return;
     }
 
-    // Evaluate remaining imports to see if they depend on any of the build files from the deleted imports //TODO Factor this out
-    const remainingDependencies = await getBuildTargetsFromPackage(changedFile.packageSources);
+    const deletionTargets = pathsToTargets(deletedImports, context);
+    deletedExternal.forEach(t => deletionTargets.add(t));
 
-    const targetDepsToRemove = validateDeletions(remainingDependencies, deletedDeps);
+    const remainingTargets = pathsToTargets(remainingImports, context);
+    remainingExternal.forEach(t => remainingTargets.add(t));
+
+    const targetDepsToRemove = setSubtract(remainingTargets, deletionTargets);
+    console.debug('Removing deps', targetDepsToRemove);
 
     // Step 4: If there are build files left, removed those dependencies from the target BUILD.bazel
     try {
         const didUpdate = await updateBuildDeps({
-            removeDeps: targetDepsToRemove,
+            removeDeps: Array.from(targetDepsToRemove),
             fileUri: changeEvent.document.uri,
             buildTarget: changedFile.target
         });
         if (didUpdate) {
-            showDismissableFileMessage(`${targetDepsToRemove.length} dep(s) removed from ${BUILD_FILE}`, changedFile.buildUri);
+            showDismissableFileMessage(`${targetDepsToRemove.size} dep(s) removed from ${BUILD_FILE}`, changedFile.buildUri);
         } else {
             showDismissableMessage("Bazel deps not removed (dependency still exists)");
         }
     } catch (error) {
-        handleBuildozerError({ 
-            error, 
-            msgSuccess: "No deps removed", 
-            msgFail: "Failed to remove deps", 
+        handleBuildozerError({
+            error,
+            msgSuccess: "No deps removed",
+            msgFail: "Failed to remove deps",
             uri: changedFile.buildUri
         });
     }
-    setExtensionState(ExtensionState.ready);   
+    setExtensionState(ExtensionState.ready);
 }
 
-function validateDeletions(remainingDependencies: string[], deletedImports: Set<string>): string[] {
-    for (const target of remainingDependencies) {
-        if (deletedImports.delete(target)) {
-            console.debug(`${target} dep still exists\n`);
-        } 
-        if (deletedImports.size === 0) {
-            break; 
+/**
+ * Subtracts items from a set
+ */
+function setSubtract(subtractions: Iterable<string>, contentSet: Set<string>): Set<string> {
+    for (const imp of subtractions) {
+        if (contentSet.delete(imp)) {
+            console.debug(`${imp} removed from set\n`);
+        }
+        if (contentSet.size === 0) {
+            break;
         }
     }
-    return Array.from(deletedImports);
+    return contentSet;
 }

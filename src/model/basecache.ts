@@ -1,17 +1,17 @@
 
-class Node<K, V>{
-    private _data: V | undefined; 
-    private _key: K | undefined; 
+class Node<K, V> {
+    private _data: V | undefined;
+    private _key: K | undefined;
 
-    private _prev: Node<K, V> | undefined; 
-    private _next: Node<K, V> | undefined; 
-    
+    private _prev: Node<K, V> | undefined;
+    private _next: Node<K, V> | undefined;
+
 
     constructor(data?: V, key?: K, next?: Node<K, V>, prev?: Node<K, V>) {
-        this.data = data; 
-        this.next = next; 
-        this.prev = prev; 
-        this.key = key; 
+        this.data = data;
+        this.next = next;
+        this.prev = prev;
+        this.key = key;
     }
 
     public get next(): Node<K, V> | undefined {
@@ -41,32 +41,32 @@ class Node<K, V>{
     }
 
     public isEmpty(): boolean {
-        return this.data === undefined && this.next === undefined && this.prev === undefined; 
+        return this.data === undefined && this.next === undefined && this.prev === undefined;
     }
 }
 
-export class Cache<K,V>{
-    nodeMap: Map<K, Node<K, V>>; 
+export class Cache<K, V> {
+    nodeMap: Map<K, Node<K, V>>;
     private head: Node<K, V>;
     private tail: Node<K, V>;
-    private size: number; 
+    private size: number;
 
     constructor(maxSize: number = 10) {
-        this.validateMaxSize(maxSize); 
-        this.size = maxSize; 
-        this.nodeMap = new Map<K,Node<K, V>>();
-        this.head = new Node(); 
-        this.tail = new Node(undefined, undefined, this.head); 
-        this.head.next = this.tail; 
+        this.validateMaxSize(maxSize);
+        this.size = maxSize;
+        this.nodeMap = new Map<K, Node<K, V>>();
+        this.head = new Node();
+        this.tail = new Node(undefined, undefined, this.head);
+        this.head.next = this.tail;
     }
 
 
     private validateMaxSize(maxSize: number) {
         if (maxSize < 1) {
-            throw Error("Size must be greater than or equal to one"); 
+            throw Error("Size must be greater than or equal to one");
         }
         if (!Number.isInteger(maxSize)) {
-            throw Error("Max size must be an integer"); 
+            throw Error("Max size must be an integer");
         }
     }
 
@@ -76,68 +76,84 @@ export class Cache<K,V>{
         }
         node.next.prev = node.prev;
         if (node.prev === undefined) {
-            throw Error("Node without prev node was added to list"); 
+            throw Error("Node without prev node was added to list");
         }
         node.prev.next = node.next;
 
         node.prev = this.head;
         node.next = this.head.next;
         if (this.head.next === undefined) {
-            throw Error("Head node points to undefined"); 
+            throw Error("Head node points to undefined");
         }
         this.head.next.prev = node;
-        this.head.next = node; 
+        this.head.next = node;
     }
 
     private insertFront(value: V, key: K) {
-        const createdNode = new Node(value, key, this.head.next, this.head); 
-        this.head.next = createdNode; 
+        const createdNode = new Node(value, key, this.head.next, this.head);
+        this.head.next = createdNode;
         createdNode.next!.prev = createdNode;
-        return createdNode; 
+        return createdNode;
     }
 
     private trimBack(): void {
-        if (this.tail.prev === undefined) {
-            throw Error("unexpected undefined head"); 
+        const removeNode = this.tail.prev;
+        if (removeNode === this.head || removeNode === undefined) {
+            return;
         }
-        const removeNode = this.tail.prev; 
-        this.tail.prev = this.tail.prev.prev;
-        if (this.tail.prev === undefined) {
-            throw Error("unexpected undefined prev"); 
-        }
-        this.tail.prev.next = this.tail; 
+        this.deleteNode(removeNode);
+    }
 
-        if (removeNode.key === undefined) {
-            throw Error("Cache node should not have an undefined key"); 
+    private deleteNode(removeNode: Node<K, V>) {
+        const forward = removeNode.next;
+        const back = removeNode.prev;
+        if (back === undefined || forward === undefined) {
+            throw Error(`Unexpected: Undefined nodes ${back} ${forward}`);
         }
 
-        this.nodeMap.delete(removeNode.key!); 
-        
+        back.next = forward;
+        forward.prev = back;
+
+        this.nodeMap.delete(removeNode.key!);
+    }
+
+    /**
+     * Returns true if key existed and false if not
+     * @param key key to delete
+     */
+    public delete(key: K): boolean {
+        const targetNode = this.nodeMap.get(key);
+        if (targetNode === undefined) {
+            return false;
+        }
+
+        this.deleteNode(targetNode);
+        return true;
     }
 
     public get(key: K): V | undefined {
         let targetNode = this.nodeMap.get(key);
         if (targetNode === undefined) {
-            return undefined; 
+            return undefined;
         }
 
-        this.moveFront(targetNode); 
-        return targetNode.data; 
+        this.moveFront(targetNode);
+        return targetNode.data;
     };
 
     public set(key: K, value: V): void {
-        const target = this.nodeMap.get(key); 
+        const target = this.nodeMap.get(key);
         if (target) {
-            target.data = value; 
-            this.moveFront(target); 
+            target.data = value;
+            this.moveFront(target);
             return;
         }
 
-        const createdNode = this.insertFront(value, key); 
-        this.nodeMap.set(key, createdNode); 
+        const createdNode = this.insertFront(value, key);
+        this.nodeMap.set(key, createdNode);
 
         if (this.nodeMap.size > this.size) {
-            this.trimBack(); 
+            this.trimBack();
         }
     };
 
@@ -147,7 +163,7 @@ export class Cache<K,V>{
 
     public clear() {
         this.head.next = this.tail;
-        this.tail.prev = this.head; 
+        this.tail.prev = this.head;
 
         this.nodeMap.clear();
     }
@@ -155,7 +171,7 @@ export class Cache<K,V>{
     *[Symbol.iterator]() {
         for (const [key, value] of this.nodeMap) {
             yield {
-                key: key, 
+                key: key,
                 value: value.data
             };
         }
@@ -166,8 +182,8 @@ export class Cache<K,V>{
         let ptr = this.head.next;
         while (ptr !== this.tail) {
             stringArray.push(JSON.stringify(ptr!.key));
-            ptr = ptr?.next; 
+            ptr = ptr?.next;
         }
-        return stringArray.join('\n'); 
+        return stringArray.join('\n');
     }
 }

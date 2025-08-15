@@ -1,37 +1,48 @@
 import * as vscode from 'vscode';
-import {showDismissableFileMessage} from '../userinteraction';
-import {handleBuildozerError, updateBuildDeps} from '../util/exectools';
-import {ActiveFileData} from '../model/activeFile';
-import {uriToBuild} from '../util/filepathtools';
-import {getBuildTargetsFromAdditions} from '../util/eventtools';
-import {BUILD_FILE} from '../extension';
-import { uriEquals } from '../util/uritools';
+import { showDismissableFileMessage, showErrorMessage } from '../ui/userinteraction';
+import { handleBuildozerError, updateBuildDeps } from '../util/exec/buildozertools';
+import { ActiveFileData } from '../model/activeFile';
+import { fsToWsPath } from '../util/path/filepathtools';
+import { uriToBuild } from '../util/path/uritools';
+import { getAddedImportPaths } from '../util/filetext/eventtools';
+import { BUILD_FILE } from '../config/config';
+import { uriEquals } from '../util/path/uritools';
+import { streamTargetInfosFromFilePaths } from '../util/exec/bazeltools';
+import { pathsToTargets } from '../util/path/filepathtools';
 
 // ADDITION
-export async function addDeps(changeEvent: vscode.TextDocumentChangeEvent, changedFile: ActiveFileData | undefined) {    
-    let buildFileUri: vscode.Uri | undefined; // let's assert that the changeEvent matches the currently open text editor; that will filter out changes that come from other sources
-    
+export async function addDeps(changeEvent: vscode.TextDocumentChangeEvent, changedFile: ActiveFileData | undefined) {
     // Step 1: Determine the current build target (e.g. where are we adding new dependencies to?)
-    let currentTargetPair: [string, vscode.Uri] | undefined;
-    if (changedFile && uriEquals(changeEvent.document.uri, changedFile.uri)) {
-        currentTargetPair = [changedFile.target, changedFile.buildUri];
-    } else {
-        currentTargetPair = uriToBuild(changeEvent.document.uri);
-    }
-    if (currentTargetPair === undefined) {
+    const buildUri = (changedFile && uriEquals(changeEvent.document.uri, changedFile.uri)) ? changedFile.buildUri : uriToBuild(changeEvent.document.uri);
+
+    if (buildUri === undefined) {
         return;
     }
-    
-    const currentTarget = currentTargetPair[0];
-    buildFileUri = currentTargetPair[1];
 
     // Step 2: Get the build targets from the added imports
-    const targets = getBuildTargetsFromAdditions(changeEvent);
-    targets.delete(currentTarget);
+    const [addedImports, externalTargets] = getAddedImportPaths(changeEvent);
+    if (addedImports.length === 0 && externalTargets.length === 0) {
+        return;
+    }
+
+    const filePath = changeEvent.document.uri.fsPath;
+    const context = await streamTargetInfosFromFilePaths(Array.from(new Set(addedImports.concat(filePath))));
+
+    const targets = pathsToTargets(addedImports, context);
+    externalTargets.forEach(t => targets.add(t));
+
+    console.debug("Added Targets", targets);
+
     if (targets.size === 0) {
         return;
     }
-    console.debug("Added Targets", targets);
+    const wsPath = fsToWsPath(filePath);
+    const currentTarget = context.getTarget(wsPath);
+    if (currentTarget === undefined) {
+        showErrorMessage(`Failed to find target for ${wsPath}`);
+        return;
+    }
+    targets.delete(currentTarget); // No adding self dependencies
 
     // Step 3: Do the update
     try {
@@ -41,14 +52,14 @@ export async function addDeps(changeEvent: vscode.TextDocumentChangeEvent, chang
             fileUri: changeEvent.document.uri
         });
         if (didUpdate) {
-            showDismissableFileMessage(`Attempted to add ${targets.size} dep(s) to ${BUILD_FILE}. One or more targets added successfully.`, buildFileUri);
+            showDismissableFileMessage(`Attempted to add ${targets.size} dep(s) to ${BUILD_FILE}. One or more targets added successfully.`, buildUri);
         }
     } catch (error) {
         handleBuildozerError({
             error,
             msgSuccess: `Nothing added to ${BUILD_FILE}`,
-            msgFail: `Command failed: Something might be wrong with ${BUILD_FILE}`, 
-            uri: buildFileUri
+            msgFail: `Command failed: Something might be wrong with ${BUILD_FILE}`,
+            uri: buildUri
         });
     }
 }

@@ -1,10 +1,10 @@
 import * as vscode from 'vscode';
-import { getTargetsFromTextAndFile } from './filetools';
+import { getFullImportPathsFromTextAndFile } from './importtools';
 
 const MIN_LENGTH = 7; // Minimum length of a ts import "from ''"
 
-export function getBuildTargetsFromDeletions(text: string, event: vscode.TextDocumentChangeEvent) {
-    return getTargetsFromEvent(
+export function getDeletedImportPaths(text: string, event: vscode.TextDocumentChangeEvent) {
+    return getFullPathsFromEvent(
         event,
         (change) => {
             const startIndex = event.document.offsetAt(change.range.start);
@@ -19,8 +19,8 @@ const isChangeDelete = (change: vscode.TextDocumentContentChangeEvent): boolean 
     return change.text === '' && change.rangeLength > MIN_LENGTH;
 };
 
-export function getBuildTargetsFromAdditions(event: vscode.TextDocumentChangeEvent) {
-    return getTargetsFromEvent(
+export function getAddedImportPaths(event: vscode.TextDocumentChangeEvent) {
+    return getFullPathsFromEvent(
         event,
         (change) => change.text,
         isChangeAddition
@@ -31,27 +31,27 @@ const isChangeAddition = (change: vscode.TextDocumentContentChangeEvent) => {
     return change.text.length > MIN_LENGTH || change.rangeLength > MIN_LENGTH;
 };
 
-function getTargetsFromEvent(
-    event: vscode.TextDocumentChangeEvent, 
-    textSrc: (change: vscode.TextDocumentContentChangeEvent) => string, 
+function getFullPathsFromEvent(
+    event: vscode.TextDocumentChangeEvent,
+    textSrc: (change: vscode.TextDocumentContentChangeEvent) => string,
     isValid: (change: vscode.TextDocumentContentChangeEvent) => boolean
-) {
+): [string[], string[]] {
     const changes = event.contentChanges;
 
-    const targets: Set<string> = new Set<string>();
+    const paths = [];
+    const externalTargets = [];
 
     for (const change of changes) {
         if (!isValid(change)) {
             continue;
         }
 
-        const importTargets = getTargetsFromTextAndFile(
+        const [importPaths, externalTarget] = getFullImportPathsFromTextAndFile(
             textSrc(change),
             event.document.uri
         );
-        for (const target of importTargets) {
-            targets.add(target);
-        }
+        paths.push(...importPaths);
+        externalTargets.push(...externalTarget);
     }
-    return targets;
+    return [paths, externalTargets];
 }

@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-const DELETION_DELAY = 10; 
+const DELETION_DELAY = 10;
 
 export async function sleep(time = DELETION_DELAY) {
     return new Promise(resolve => setTimeout(resolve, time));

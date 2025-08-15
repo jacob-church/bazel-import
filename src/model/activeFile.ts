@@ -1,4 +1,6 @@
 import * as vscode from 'vscode';
+import { TargetInfo } from './bazelquery/targetinfo';
+import { PkgContext } from './bazelquery/packagecontext';
 
 export interface ActiveFileData {
     documentState: string,
@@ -6,9 +8,10 @@ export interface ActiveFileData {
     target: string,
     buildUri: vscode.Uri,
     packageSources: vscode.Uri[],
+    context: PkgContext
 }
 
-export class ActiveFile  {
+export class ActiveFile {
     private static _data: ActiveFileData;
 
     public static get data(): ActiveFileData {

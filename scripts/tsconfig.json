@@ -1,0 +1,12 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "outDir": "../out/scripts", // Compile scripts to a separate output folder
+    "rootDir": ".",
+    "noEmit": false
+  },
+  "include": [
+    "./**/*.ts" // Only compile .ts files within the 'scripts' directory
+  ]
+}
